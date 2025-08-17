@@ -1,0 +1,709 @@
+loc     op
+-----   --
+main
+00000  lambda       <object#0>                              
+00005  undefined                                            
+00006  call         0                                       
+00009  setrval                                              
+0000A  lambda       <object#1>                              
+0000F  undefined                                            
+00010  call         0                                       
+00013  setrval                                              
+00014  retrval                                              
+
+unknown
+00000  name         "ccs"                                   
+00005  newinit      1                                       
+0000A  newinit      1                                       
+0000F  endinit                                              
+00010  initprop     "_fileDesignSizes"                      
+00015  lambda       <object#0>                              
+0001A  initprop     "widgetFromJsonFile"                    
+0001F  lambda       <object#1>                              
+00024  initprop     "registerTypeAndCallBack"               
+00029  lambda       <object#2>                              
+0002E  initprop     "getVersionInteger"                     
+00033  lambda       <object#3>                              
+00038  initprop     "storeFileDesignSize"                   
+0003D  lambda       <object#4>                              
+00042  initprop     "getFileDesignSize"                     
+00047  lambda       <object#5>                              
+0004C  initprop     "getFilePath"                           
+00051  lambda       <object#6>                              
+00056  initprop     "setFilePath"                           
+0005B  lambda       <object#7>                              
+00060  initprop     "getParseObjectMap"                     
+00065  lambda       <object#8>                              
+0006A  initprop     "getParseCallBackMap"                   
+0006F  lambda       <object#9>                              
+00074  initprop     "clear"                                 
+00079  endinit                                              
+0007A  setprop      "uiReader"                              
+0007F  pop                                                  
+00080  name         "ccs"                                   
+00085  getprop      "_load"                                 
+0008A  dup                                                  
+0008B  callprop     "getParser"                             
+00090  swap                                                 
+00091  string       "ccui"                                  
+00096  call         1                                       
+00099  string       "*"                                     
+0009E  getelem                                              
+0009F  setlocal     0                                       
+000A3  pop                                                  
+000A4  name         "ccs"                                   
+000A9  newinit      1                                       
+000AE  getlocal     0                                       
+000B2  getprop      "ImageViewAttributes"                   
+000B7  initprop     "setPropsFromJsonDictionary"            
+000BC  endinit                                              
+000BD  setprop      "imageViewReader"                       
+000C2  pop                                                  
+000C3  name         "ccs"                                   
+000C8  newinit      1                                       
+000CD  getlocal     0                                       
+000D1  getprop      "ButtonAttributes"                      
+000D6  initprop     "setPropsFromJsonDictionary"            
+000DB  endinit                                              
+000DC  setprop      "buttonReader"                          
+000E1  pop                                                  
+000E2  name         "ccs"                                   
+000E7  newinit      1                                       
+000EC  getlocal     0                                       
+000F0  getprop      "CheckBoxAttributes"                    
+000F5  initprop     "setPropsFromJsonDictionary"            
+000FA  endinit                                              
+000FB  setprop      "checkBoxReader"                        
+00100  pop                                                  
+00101  name         "ccs"                                   
+00106  newinit      1                                       
+0010B  getlocal     0                                       
+0010F  getprop      "TextAtlasAttributes"                   
+00114  initprop     "setPropsFromJsonDictionary"            
+00119  endinit                                              
+0011A  setprop      "labelAtlasReader"                      
+0011F  pop                                                  
+00120  name         "ccs"                                   
+00125  newinit      1                                       
+0012A  getlocal     0                                       
+0012E  getprop      "TextBMFontAttributes"                  
+00133  initprop     "setPropsFromJsonDictionary"            
+00138  endinit                                              
+00139  setprop      "labelBMFontReader"                     
+0013E  pop                                                  
+0013F  name         "ccs"                                   
+00144  newinit      1                                       
+00149  getlocal     0                                       
+0014D  getprop      "TextAttributes"                        
+00152  initprop     "setPropsFromJsonDictionary"            
+00157  endinit                                              
+00158  setprop      "labelReader"                           
+0015D  pop                                                  
+0015E  name         "ccs"                                   
+00163  newinit      1                                       
+00168  getlocal     0                                       
+0016C  getprop      "LayoutAttributes"                      
+00171  initprop     "setPropsFromJsonDictionary"            
+00176  endinit                                              
+00177  setprop      "layoutReader"                          
+0017C  pop                                                  
+0017D  name         "ccs"                                   
+00182  newinit      1                                       
+00187  getlocal     0                                       
+0018B  getprop      "ListViewAttributes"                    
+00190  initprop     "setPropsFromJsonDictionary"            
+00195  endinit                                              
+00196  setprop      "listViewReader"                        
+0019B  pop                                                  
+0019C  name         "ccs"                                   
+001A1  newinit      1                                       
+001A6  getlocal     0                                       
+001AA  getprop      "LoadingBarAttributes"                  
+001AF  initprop     "setPropsFromJsonDictionary"            
+001B4  endinit                                              
+001B5  setprop      "loadingBarReader"                      
+001BA  pop                                                  
+001BB  name         "ccs"                                   
+001C0  newinit      1                                       
+001C5  getlocal     0                                       
+001C9  getprop      "PageViewAttributes"                    
+001CE  initprop     "setPropsFromJsonDictionary"            
+001D3  endinit                                              
+001D4  setprop      "pageViewReader"                        
+001D9  pop                                                  
+001DA  name         "ccs"                                   
+001DF  newinit      1                                       
+001E4  getlocal     0                                       
+001E8  getprop      "ScrollViewAttributes"                  
+001ED  initprop     "setPropsFromJsonDictionary"            
+001F2  endinit                                              
+001F3  setprop      "scrollViewReader"                      
+001F8  pop                                                  
+001F9  name         "ccs"                                   
+001FE  newinit      1                                       
+00203  getlocal     0                                       
+00207  getprop      "SliderAttributes"                      
+0020C  initprop     "setPropsFromJsonDictionary"            
+00211  endinit                                              
+00212  setprop      "sliderReader"                          
+00217  pop                                                  
+00218  name         "ccs"                                   
+0021D  newinit      1                                       
+00222  getlocal     0                                       
+00226  getprop      "TextFieldAttributes"                   
+0022B  initprop     "setPropsFromJsonDictionary"            
+00230  endinit                                              
+00231  setprop      "textFieldReader"                       
+00236  pop                                                  
+00237  retrval                                              
+
+
+ccs.uiReader.widgetFromJsonFile
+00000  name         "cc"                                    
+00005  getprop      "loader"                                
+0000A  dup                                                  
+0000B  callprop     "getRes"                                
+00010  swap                                                 
+00011  name         "cc"                                    
+00016  getprop      "path"                                  
+0001B  dup                                                  
+0001C  callprop     "join"                                  
+00021  swap                                                 
+00022  name         "cc"                                    
+00027  getprop      "loader"                                
+0002C  getprop      "resPath"                               
+00031  getarg       0                                       
+00034  call         2                                       
+00037  call         1                                       
+0003A  setlocal     0                                       
+0003E  pop                                                  
+0003F  getlocal     0                                       
+00043  ifeq         loc_00082 (+63)                         
+00048  this                                                 
+00049  getprop      "_fileDesignSizes"                      
+0004E  getarg       0                                       
+00051  name         "cc"                                    
+00056  dup                                                  
+00057  callprop     "size"                                  
+0005C  swap                                                 
+0005D  getlocal     0                                       
+00061  getprop      "designWidth"                           
+00066  or           loc_0006D (+7)                          
+0006B  pop                                                  
+0006C  zero                                                 
+
+loc_0006D:                                                  ; L109
+0006D  getlocal     0                                       
+00071  getprop      "designHeight"                          
+00076  or           loc_0007D (+7)                          
+0007B  pop                                                  
+0007C  zero                                                 
+
+loc_0007D:                                                  ; L125
+0007D  call         2                                       
+00080  setelem                                              
+00081  pop                                                  
+
+loc_00082:                                                  ; L130
+00082  getlocal     0                                       
+00086  getprop      "Version"                               
+0008B  or           loc_0009A (+15)                         
+00090  pop                                                  
+00091  getlocal     0                                       
+00095  getprop      "version"                               
+
+loc_0009A:                                                  ; L154
+0009A  setlocal     1                                       
+0009E  pop                                                  
+0009F  name         "ccs"                                   
+000A4  getprop      "uiReader"                              
+000A9  dup                                                  
+000AA  callprop     "getVersionInteger"                     
+000AF  swap                                                 
+000B0  getlocal     1                                       
+000B4  call         1                                       
+000B7  setlocal     2                                       
+000BB  pop                                                  
+000BC  getlocal     1                                       
+000C0  not                                                  
+000C1  or           loc_000CF (+14)                         
+000C6  pop                                                  
+000C7  getlocal     2                                       
+000CB  uint16       1700                                    
+000CE  ge                                                   
+
+loc_000CF:                                                  ; L207
+000CF  ifeq         loc_000EB (+28)                         
+000D4  name         "cc"                                    
+000D9  dup                                                  
+000DA  callprop     "warn"                                  
+000DF  swap                                                 
+000E0  string       "Not supported file types, Please try use the ccs.load" 
+000E5  call         1                                       
+000E8  pop                                                  
+000E9  null                                                 
+000EA  return                                               
+
+loc_000EB:                                                  ; L235
+000EB  name         "ccs"                                   
+000F0  dup                                                  
+000F1  callprop     "_load"                                 
+000F6  swap                                                 
+000F7  getarg       0                                       
+000FA  string       "ccui"                                  
+000FF  call         2                                       
+00102  return                                               
+00103  retrval                                              
+
+
+ccs.uiReader.registerTypeAndCallBack
+00000  name         "ccs"                                   
+00005  getprop      "_load"                                 
+0000A  dup                                                  
+0000B  callprop     "getParser"                             
+00010  swap                                                 
+00011  string       "ccui"                                  
+00016  call         1                                       
+00019  getprop      "*"                                     
+0001E  setlocal     0                                       
+00022  pop                                                  
+00023  getarg       3                                       
+00026  dup                                                  
+00027  callprop     "bind"                                  
+0002C  swap                                                 
+0002D  getaliasedvar "object" (hops = 0, slot = 4)          
+00032  call         1                                       
+00035  setaliasedvar "func" (hops = 0, slot = 5)            
+0003A  pop                                                  
+0003B  getlocal     0                                       
+0003F  dup                                                  
+00040  callprop     "registerParser"                        
+00045  swap                                                 
+00046  getaliasedvar "classType" (hops = 0, slot = 2)       
+0004B  lambda       <object#0>                              
+00050  call         2                                       
+00053  pop                                                  
+00054  retrval                                              
+
+
+ccs.uiReader.registerTypeAndCallBack/<
+00000  getaliasedvar "ins" (hops = 0, slot = 3)             
+00005  undefined                                            
+00006  new          0                                       
+00009  setlocal     0                                       
+0000D  pop                                                  
+0000E  getarg       0                                       
+00011  getprop      "options"                               
+00016  setlocal     1                                       
+0001A  pop                                                  
+0001B  getaliasedvar "object" (hops = 0, slot = 4)          
+00020  getprop      "setPropsFromJsonDictionary"            
+00025  and          loc_00042 (+29)                         
+0002A  pop                                                  
+0002B  getaliasedvar "object" (hops = 0, slot = 4)          
+00030  dup                                                  
+00031  callprop     "setPropsFromJsonDictionary"            
+00036  swap                                                 
+00037  getlocal     0                                       
+0003B  getlocal     1                                       
+0003F  call         2                                       
+
+loc_00042:                                                  ; L66
+00042  pop                                                  
+00043  this                                                 
+00044  dup                                                  
+00045  callprop     "generalAttributes"                     
+0004A  swap                                                 
+0004B  getlocal     0                                       
+0004F  getlocal     1                                       
+00053  call         2                                       
+00056  pop                                                  
+00057  getlocal     1                                       
+0005B  getprop      "customProperty"                        
+00060  setlocal     2                                       
+00064  pop                                                  
+00065  getlocal     2                                       
+00069  ifeq         loc_0008B (+34)                         
+0006E  name         "JSON"                                  
+00073  dup                                                  
+00074  callprop     "parse"                                 
+00079  swap                                                 
+0007A  getlocal     2                                       
+0007E  call         1                                       
+00081  setlocal     2                                       
+00085  pop                                                  
+00086  goto         loc_00096 (+16)                         
+
+loc_0008B:                                                  ; L139
+0008B  newinit      1                                       
+00090  endinit                                              
+00091  setlocal     2                                       
+00095  pop                                                  
+
+loc_00096:                                                  ; L150
+00096  getaliasedvar "func" (hops = 0, slot = 5)            
+0009B  undefined                                            
+0009C  getaliasedvar "classType" (hops = 0, slot = 2)       
+000A1  getlocal     0                                       
+000A5  getlocal     2                                       
+000A9  call         3                                       
+000AC  pop                                                  
+000AD  this                                                 
+000AE  dup                                                  
+000AF  callprop     "colorAttributes"                       
+000B4  swap                                                 
+000B5  getlocal     0                                       
+000B9  getlocal     1                                       
+000BD  call         2                                       
+000C0  pop                                                  
+000C1  this                                                 
+000C2  dup                                                  
+000C3  callprop     "anchorPointAttributes"                 
+000C8  swap                                                 
+000C9  getlocal     0                                       
+000CD  getlocal     1                                       
+000D1  call         2                                       
+000D4  pop                                                  
+000D5  this                                                 
+000D6  getprop      "parseChild"                            
+000DB  dup                                                  
+000DC  callprop     "call"                                  
+000E1  swap                                                 
+000E2  this                                                 
+000E3  getlocal     0                                       
+000E7  getarg       0                                       
+000EA  getarg       1                                       
+000ED  funcall      4                                       
+000F0  pop                                                  
+000F1  getlocal     0                                       
+000F5  return                                               
+000F6  retrval                                              
+
+
+ccs.uiReader.getVersionInteger
+00000  getarg       0                                       
+00003  not                                                  
+00004  or           loc_00014 (+16)                         
+00009  pop                                                  
+0000A  getarg       0                                       
+0000D  typeof                                               
+0000E  string       "string"                                
+00013  strictne                                             
+
+loc_00014:                                                  ; L20
+00014  ifeq         loc_0001B (+7)                          
+00019  zero                                                 
+0001A  return                                               
+
+loc_0001B:                                                  ; L27
+0001B  getarg       0                                       
+0001E  dup                                                  
+0001F  callprop     "split"                                 
+00024  swap                                                 
+00025  string       "."                                     
+0002A  call         1                                       
+0002D  setlocal     0                                       
+00031  pop                                                  
+00032  getlocal     0                                       
+00036  length       "length"                                
+0003B  int8         4                                       
+0003D  strictne                                             
+0003E  ifeq         loc_00045 (+7)                          
+00043  zero                                                 
+00044  return                                               
+
+loc_00045:                                                  ; L69
+00045  zero                                                 
+00046  setaliasedvar "num" (hops = 0, slot = 2)             
+0004B  pop                                                  
+0004C  getlocal     0                                       
+00050  dup                                                  
+00051  callprop     "forEach"                               
+00056  swap                                                 
+00057  lambda       <object#0>                              
+0005C  call         1                                       
+0005F  pop                                                  
+00060  getaliasedvar "num" (hops = 0, slot = 2)             
+00065  return                                               
+00066  retrval                                              
+
+
+ccs.uiReader.getVersionInteger/<
+00000  getaliasedvar "num" (hops = 0, slot = 2)             
+00005  getarg       0                                       
+00008  name         "Math"                                  
+0000D  dup                                                  
+0000E  callprop     "pow"                                   
+00013  swap                                                 
+00014  int8         10                                      
+00016  int8         3                                       
+00018  getarg       1                                       
+0001B  sub                                                  
+0001C  call         2                                       
+0001F  mul                                                  
+00020  add                                                  
+00021  setaliasedvar "num" (hops = 0, slot = 2)             
+00026  pop                                                  
+00027  retrval                                              
+
+
+ccs.uiReader.storeFileDesignSize
+00000  this                                                 
+00001  getprop      "_fileDesignSizes"                      
+00006  getarg       0                                       
+00009  getarg       1                                       
+0000C  setelem                                              
+0000D  pop                                                  
+0000E  retrval                                              
+
+
+ccs.uiReader.getFileDesignSize
+00000  this                                                 
+00001  getprop      "_fileDesignSizes"                      
+00006  getarg       0                                       
+00009  getelem                                              
+0000A  return                                               
+0000B  retrval                                              
+
+
+ccs.uiReader.getFilePath
+00000  this                                                 
+00001  getprop      "_filePath"                             
+00006  return                                               
+00007  retrval                                              
+
+
+ccs.uiReader.setFilePath
+00000  this                                                 
+00001  getarg       0                                       
+00004  setprop      "_filePath"                             
+00009  pop                                                  
+0000A  retrval                                              
+
+
+ccs.uiReader.getParseObjectMap
+00000  name         "ccs"                                   
+00005  getprop      "_load"                                 
+0000A  dup                                                  
+0000B  callprop     "getParser"                             
+00010  swap                                                 
+00011  string       "ccui"                                  
+00016  call         1                                       
+00019  getprop      "*"                                     
+0001E  getprop      "parsers"                               
+00023  return                                               
+00024  retrval                                              
+
+
+ccs.uiReader.getParseCallBackMap
+00000  name         "ccs"                                   
+00005  getprop      "_load"                                 
+0000A  dup                                                  
+0000B  callprop     "getParser"                             
+00010  swap                                                 
+00011  string       "ccui"                                  
+00016  call         1                                       
+00019  getprop      "*"                                     
+0001E  getprop      "parsers"                               
+00023  return                                               
+00024  retrval                                              
+
+
+ccs.uiReader.clear
+00000  retrval                                              
+
+unknown
+00000  name         "ccs"                                   
+00005  newinit      1                                       
+0000A  null                                                 
+0000B  initprop     "_node"                                 
+00010  lambda       <object#0>                              
+00015  initprop     "createNodeWithSceneFile"               
+0001A  lambda       <object#1>                              
+0001F  initprop     "getNodeByTag"                          
+00024  lambda       <object#2>                              
+00029  initprop     "_nodeByTag"                            
+0002E  lambda       <object#3>                              
+00033  initprop     "version"                               
+00038  lambda       <object#4>                              
+0003D  initprop     "setTarget"                             
+00042  lambda       <object#5>                              
+00047  initprop     "clear"                                 
+0004C  endinit                                              
+0004D  setprop      "sceneReader"                           
+00052  pop                                                  
+00053  retrval                                              
+
+
+ccs.sceneReader.createNodeWithSceneFile
+00000  name         "ccs"                                   
+00005  dup                                                  
+00006  callprop     "_load"                                 
+0000B  swap                                                 
+0000C  getarg       0                                       
+0000F  string       "scene"                                 
+00014  call         2                                       
+00017  setlocal     0                                       
+0001B  pop                                                  
+0001C  this                                                 
+0001D  getlocal     0                                       
+00021  setprop      "_node"                                 
+00026  pop                                                  
+00027  getlocal     0                                       
+0002B  return                                               
+0002C  retrval                                              
+
+
+ccs.sceneReader.getNodeByTag
+00000  this                                                 
+00001  getprop      "_node"                                 
+00006  null                                                 
+00007  eq                                                   
+00008  ifeq         loc_0000F (+7)                          
+0000D  null                                                 
+0000E  return                                               
+
+loc_0000F:                                                  ; L15
+0000F  this                                                 
+00010  getprop      "_node"                                 
+00015  dup                                                  
+00016  callprop     "getTag"                                
+0001B  swap                                                 
+0001C  call         0                                       
+0001F  getarg       0                                       
+00022  stricteq                                             
+00023  ifeq         loc_0002F (+12)                         
+00028  this                                                 
+00029  getprop      "_node"                                 
+0002E  return                                               
+
+loc_0002F:                                                  ; L47
+0002F  this                                                 
+00030  dup                                                  
+00031  callprop     "_nodeByTag"                            
+00036  swap                                                 
+00037  this                                                 
+00038  getprop      "_node"                                 
+0003D  getarg       0                                       
+00040  call         2                                       
+00043  return                                               
+00044  retrval                                              
+
+
+ccs.sceneReader._nodeByTag
+00000  getarg       0                                       
+00003  null                                                 
+00004  eq                                                   
+00005  ifeq         loc_0000C (+7)                          
+0000A  null                                                 
+0000B  return                                               
+
+loc_0000C:                                                  ; L12
+0000C  null                                                 
+0000D  setlocal     0                                       
+00011  pop                                                  
+00012  getarg       0                                       
+00015  dup                                                  
+00016  callprop     "getChildren"                           
+0001B  swap                                                 
+0001C  call         0                                       
+0001F  setlocal     1                                       
+00023  pop                                                  
+00024  zero                                                 
+00025  setlocal     2                                       
+00029  pop                                                  
+0002A  goto         loc_000A5 (+123)                        
+; try begin (loop, depth=0, id=0)
+
+loc_0002F:                                                  ; L47
+0002F  loophead                                             
+00030  getlocal     1                                       
+00034  getlocal     2                                       
+00038  getelem                                              
+00039  setlocal     3                                       
+0003D  pop                                                  
+0003E  getlocal     3                                       
+00042  and          loc_0005A (+24)                         
+00047  pop                                                  
+00048  getlocal     3                                       
+0004C  dup                                                  
+0004D  callprop     "getTag"                                
+00052  swap                                                 
+00053  call         0                                       
+00056  getarg       1                                       
+00059  stricteq                                             
+
+loc_0005A:                                                  ; L90
+0005A  ifeq         loc_00072 (+24)                         
+0005F  getlocal     3                                       
+00063  setlocal     0                                       
+00067  pop                                                  
+00068  goto         loc_000BA (+82)                         
+0006D  goto         loc_00097 (+42)                         
+
+loc_00072:                                                  ; L114
+00072  this                                                 
+00073  dup                                                  
+00074  callprop     "_nodeByTag"                            
+00079  swap                                                 
+0007A  getlocal     3                                       
+0007E  getarg       1                                       
+00081  call         2                                       
+00084  setlocal     0                                       
+00088  pop                                                  
+00089  getlocal     0                                       
+0008D  ifeq         loc_00097 (+10)                         
+00092  goto         loc_000BA (+40)                         
+
+loc_00097:                                                  ; L151
+00097  getlocal     2                                       
+0009B  pos                                                  
+0009C  dup                                                  
+0009D  one                                                  
+0009E  add                                                  
+0009F  setlocal     2                                       
+000A3  pop                                                  
+000A4  pop                                                  
+
+loc_000A5:                                                  ; L165
+000A5  loopentry    129                                     
+000A7  getlocal     2                                       
+000AB  getlocal     1                                       
+000AF  length       "length"                                
+000B4  lt                                                   
+000B5  ifne         loc_0002F (-134)                        
+; try end   (loop, id=0)
+
+loc_000BA:                                                  ; L186
+000BA  getlocal     0                                       
+000BE  return                                               
+000BF  retrval                                              
+
+
+ccs.sceneReader.version
+00000  string       "*"                                     
+00005  return                                               
+00006  retrval                                              
+
+
+ccs.sceneReader.setTarget
+00000  retrval                                              
+
+
+ccs.sceneReader.clear
+00000  name         "ccs"                                   
+00005  getprop      "triggerManager"                        
+0000A  dup                                                  
+0000B  callprop     "removeAll"                             
+00010  swap                                                 
+00011  call         0                                       
+00014  pop                                                  
+00015  name         "cc"                                    
+0001A  getprop      "audioEngine"                           
+0001F  dup                                                  
+00020  callprop     "end"                                   
+00025  swap                                                 
+00026  call         0                                       
+00029  pop                                                  
+0002A  retrval                                              
+

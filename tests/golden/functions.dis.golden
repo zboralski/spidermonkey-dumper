@@ -1,0 +1,426 @@
+loc     op
+-----   --
+main
+00000  lambda       <object#0>                              
+00005  undefined                                            
+00006  call         0                                       
+00009  setrval                                              
+0000A  retrval                                              
+
+unknown
+00000  lambda       <object#0>                              
+00005  setaliasedvar "createStyle" (hops = 0, slot = 2)     
+0000A  pop                                                  
+0000B  lambda       <object#1>                              
+00010  setaliasedvar "createDom" (hops = 0, slot = 3)       
+00015  pop                                                  
+00016  lambda       <object#2>                              
+0001B  setaliasedvar "startAnimation" (hops = 0, slot = 4)  
+00020  pop                                                  
+00021  lambda       <object#3>                              
+00026  undefined                                            
+00027  call         0                                       
+0002A  pop                                                  
+0002B  retrval                                              
+
+
+createStyle
+00000  string       ".cocosLoading{position:absolute;top:0;left:0;width:100%;height:100%;background:#252525}" 
+00005  string       ".cocosLoading .image{display:block;width:100%;height:85%;background:url(./res/icon.png) no-repeat center; max-width:1000px;background-size: 30% auto; margin:0 auto;animation: animate-scale 0.7s, animate-opacity 0.7s, animate-blur 0.7s, animage-glow 1.2s ease-in-out;}" 
+0000A  add                                                  
+0000B  string       ".cocosLoading ul{height:5%; width:100%;margin-left:50%;padding-inline-start:0px;transform:translateX(-90px);}" 
+00010  add                                                  
+00011  string       ".cocosLoading span{color:#f05a23;text-align:center;font-size:24px;display:block;width:100%;height:10%;background-size: 30% auto;position: absolute}" 
+00016  add                                                  
+00017  string       ".cocosLoading li{list-style:none;float:left;border-radius:24px;width:24px;height:24px;background:#FFF;margin:5px 0 0 10px}" 
+0001C  add                                                  
+0001D  string       ".cocosLoading li .ball,.cocosLoading li .unball{background-color:#f05a23;background-image:-moz-linear-gradient(90deg,#f05a23 25%,#f0b73c);background-image:-webkit-linear-gradient(90deg,#f05a23 25%,#f0b73c);width:24px;height:24px;border-radius:50px}" 
+00022  add                                                  
+00023  string       ".cocosLoading li .ball{transform:scale(0);-moz-transform:scale(0);-webkit-transform:scale(0);animation:showDot 1s linear forwards;-moz-animation:showDot 1s linear forwards;-webkit-animation:showDot 1s linear forwards}" 
+00028  add                                                  
+00029  string       ".cocosLoading li .unball{transform:scale(1);-moz-transform:scale(1);-webkit-transform:scale(1);animation:hideDot 1s linear forwards;-moz-animation:hideDot 1s linear forwards;-webkit-animation:hideDot 1s linear forwards}" 
+0002E  add                                                  
+0002F  string       "@keyframes showDot{0%{transform:scale(0,0)}100%{transform:scale(1,1)}}" 
+00034  add                                                  
+00035  string       "@-moz-keyframes showDot{0%{-moz-transform:scale(0,0)}100%{-moz-transform:scale(1,1)}}" 
+0003A  add                                                  
+0003B  string       "@-webkit-keyframes showDot{0%{-webkit-transform:scale(0,0)}100%{-webkit-transform:scale(1,1)}}" 
+00040  add                                                  
+00041  string       "@keyframes hideDot{0%{transform:scale(1,1)}100%{transform:scale(0,0)}}" 
+00046  add                                                  
+00047  string       "@-moz-keyframes hideDot{0%{-moz-transform:scale(1,1)}100%{-moz-transform:scale(0,0)}}" 
+0004C  add                                                  
+0004D  string       "@-webkit-keyframes hideDot{0%{-webkit-transform:scale(1,1)}100%{-webkit-transform:scale(0,0)}}" 
+00052  add                                                  
+00053  string       "@keyframes animate-scale{0% {transform:scale(0.2);} 25% {transform:scale(1.2);} 100% {transform:scale(1.0);}}" 
+00058  add                                                  
+00059  string       "@keyframes animate-opacity{0% {opacity: 0.2;} 100% {opacity: 1;}}" 
+0005E  add                                                  
+0005F  string       "@keyframes animate-blur {0%{-webkit-filter: blur(5px);filter: blur(5px);filter: drop-shadow(16px 16px 20px rgb(247, 148, 36))}100% {-webkit-filter: blur(0px);filter: blur(0px);filter: drop-shadow(0px 0px 0px (247, 148, 36))}}" 
+00064  add                                                  
+00065  string       "@keyframes animate-glow {0% {filter: drop-shadow(16px 16px 20px rgb(247, 148, 36))}100%{filter: drop-shadow(5px 5px 5px (247, 148, 36))}}" 
+0006A  add                                                  
+0006B  return                                               
+0006C  retrval                                              
+
+
+createDom
+00000  getarg       0                                       
+00003  or           loc_0000E (+11)                         
+00008  pop                                                  
+00009  string       "cocosLoading"                          
+
+loc_0000E:                                                  ; L14
+0000E  setarg       0                                       
+00011  pop                                                  
+00012  getarg       1                                       
+00015  or           loc_0001D (+8)                          
+0001A  pop                                                  
+0001B  int8         5                                       
+
+loc_0001D:                                                  ; L29
+0001D  setarg       1                                       
+00020  pop                                                  
+00021  getlocal     0                                       
+00025  pop                                                  
+00026  getlocal     1                                       
+0002A  pop                                                  
+0002B  name         "document"                              
+00030  dup                                                  
+00031  callprop     "createElement"                         
+00036  swap                                                 
+00037  string       "div"                                   
+0003C  call         1                                       
+0003F  setlocal     2                                       
+00043  pop                                                  
+00044  getlocal     2                                       
+00048  string       "cocosLoading"                          
+0004D  setprop      "className"                             
+00052  pop                                                  
+00053  getlocal     2                                       
+00057  getarg       0                                       
+0005A  setprop      "id"                                    
+0005F  pop                                                  
+00060  name         "document"                              
+00065  dup                                                  
+00066  callprop     "createElement"                         
+0006B  swap                                                 
+0006C  string       "div"                                   
+00071  call         1                                       
+00074  setlocal     3                                       
+00078  pop                                                  
+00079  getlocal     3                                       
+0007D  string       "image"                                 
+00082  setprop      "className"                             
+00087  pop                                                  
+00088  getlocal     2                                       
+0008C  dup                                                  
+0008D  callprop     "appendChild"                           
+00092  swap                                                 
+00093  getlocal     3                                       
+00097  call         1                                       
+0009A  pop                                                  
+0009B  name         "document"                              
+000A0  dup                                                  
+000A1  callprop     "createElement"                         
+000A6  swap                                                 
+000A7  string       "ul"                                    
+000AC  call         1                                       
+000AF  setlocal     4                                       
+000B3  pop                                                  
+000B4  newarray     0                                       
+000B8  endinit                                              
+000B9  setlocal     5                                       
+000BD  pop                                                  
+000BE  zero                                                 
+000BF  setlocal     0                                       
+000C3  pop                                                  
+000C4  goto         loc_0015C (+152)                        
+; try begin (loop, depth=0, id=0)
+
+loc_000C9:                                                  ; L201
+000C9  loophead                                             
+000CA  name         "document"                              
+000CF  dup                                                  
+000D0  callprop     "createElement"                         
+000D5  swap                                                 
+000D6  string       "li"                                    
+000DB  call         1                                       
+000DE  setlocal     1                                       
+000E2  pop                                                  
+000E3  getlocal     5                                       
+000E7  dup                                                  
+000E8  callprop     "push"                                  
+000ED  swap                                                 
+000EE  newinit      1                                       
+000F3  name         "document"                              
+000F8  dup                                                  
+000F9  callprop     "createElement"                         
+000FE  swap                                                 
+000FF  string       "div"                                   
+00104  call         1                                       
+00107  initprop     "ball"                                  
+0010C  null                                                 
+0010D  initprop     "halo"                                  
+00112  endinit                                              
+00113  call         1                                       
+00116  pop                                                  
+00117  getlocal     1                                       
+0011B  dup                                                  
+0011C  callprop     "appendChild"                           
+00121  swap                                                 
+00122  getlocal     5                                       
+00126  getlocal     5                                       
+0012A  length       "length"                                
+0012F  one                                                  
+00130  sub                                                  
+00131  getelem                                              
+00132  getprop      "ball"                                  
+00137  call         1                                       
+0013A  pop                                                  
+0013B  getlocal     4                                       
+0013F  dup                                                  
+00140  callprop     "appendChild"                           
+00145  swap                                                 
+00146  getlocal     1                                       
+0014A  call         1                                       
+0014D  pop                                                  
+0014E  getlocal     0                                       
+00152  pos                                                  
+00153  dup                                                  
+00154  one                                                  
+00155  add                                                  
+00156  setlocal     0                                       
+0015A  pop                                                  
+0015B  pop                                                  
+
+loc_0015C:                                                  ; L348
+0015C  loopentry    129                                     
+0015E  getlocal     0                                       
+00162  getarg       1                                       
+00165  lt                                                   
+00166  ifne         loc_000C9 (-157)                        
+; try end   (loop, id=0)
+
+loc_0016B:                                                  ; L363
+0016B  name         "document"                              
+00170  dup                                                  
+00171  callprop     "createElement"                         
+00176  swap                                                 
+00177  string       "span"                                  
+0017C  call         1                                       
+0017F  setlocal     6                                       
+00183  pop                                                  
+00184  getlocal     6                                       
+00188  string       "LOADING..."                            
+0018D  setprop      "innerHTML"                             
+00192  pop                                                  
+00193  getlocal     2                                       
+00197  dup                                                  
+00198  callprop     "appendChild"                           
+0019D  swap                                                 
+0019E  getlocal     4                                       
+001A2  call         1                                       
+001A5  pop                                                  
+001A6  getlocal     2                                       
+001AA  dup                                                  
+001AB  callprop     "appendChild"                           
+001B0  swap                                                 
+001B1  getlocal     6                                       
+001B5  call         1                                       
+001B8  pop                                                  
+001B9  name         "document"                              
+001BE  getprop      "body"                                  
+001C3  dup                                                  
+001C4  callprop     "appendChild"                           
+001C9  swap                                                 
+001CA  getlocal     2                                       
+001CE  call         1                                       
+001D1  pop                                                  
+001D2  getlocal     5                                       
+001D6  return                                               
+001D7  retrval                                              
+
+
+startAnimation
+00000  zero                                                 
+00001  setaliasedvar "index" (hops = 0, slot = 4)           
+00006  pop                                                  
+00007  true                                                 
+00008  setaliasedvar "direction" (hops = 0, slot = 5)       
+0000D  pop                                                  
+0000E  uint16       300                                     
+00011  setaliasedvar "time" (hops = 0, slot = 6)            
+00016  pop                                                  
+00017  lambda       <object#0>                              
+0001C  setaliasedvar "animation" (hops = 0, slot = 7)       
+00021  pop                                                  
+00022  getaliasedvar "animation" (hops = 0, slot = 7)       
+00027  undefined                                            
+00028  call         0                                       
+0002B  pop                                                  
+0002C  retrval                                              
+
+
+startAnimation/animation
+00000  name         "setTimeout"                            
+00005  implicitthis "setTimeout"                            
+0000A  lambda       <object#0>                              
+0000F  getaliasedvar "time" (hops = 0, slot = 6)            
+00014  call         2                                       
+00017  pop                                                  
+00018  retrval                                              
+
+
+startAnimation/animation/<
+00000  getaliasedvar "callback" (hops = 0, slot = 3)        
+00005  and          loc_00015 (+16)                         
+0000A  pop                                                  
+0000B  getaliasedvar "callback" (hops = 0, slot = 3)        
+00010  undefined                                            
+00011  call         0                                       
+00014  not                                                  
+
+loc_00015:                                                  ; L21
+00015  ifeq         loc_0001C (+7)                          
+0001A  undefined                                            
+0001B  return                                               
+
+loc_0001C:                                                  ; L28
+0001C  getaliasedvar "list" (hops = 0, slot = 2)            
+00021  getaliasedvar "index" (hops = 0, slot = 4)           
+00026  getelem                                              
+00027  setlocal     0                                       
+0002B  pop                                                  
+0002C  getaliasedvar "direction" (hops = 0, slot = 5)       
+00031  ifeq         loc_0004F (+30)                         
+00036  getlocal     0                                       
+0003A  getprop      "ball"                                  
+0003F  string       "ball"                                  
+00044  setprop      "className"                             
+00049  pop                                                  
+0004A  goto         loc_00063 (+25)                         
+
+loc_0004F:                                                  ; L79
+0004F  getlocal     0                                       
+00053  getprop      "ball"                                  
+00058  string       "unball"                                
+0005D  setprop      "className"                             
+00062  pop                                                  
+
+loc_00063:                                                  ; L99
+00063  getaliasedvar "index" (hops = 0, slot = 4)           
+00068  pos                                                  
+00069  dup                                                  
+0006A  one                                                  
+0006B  add                                                  
+0006C  setaliasedvar "index" (hops = 0, slot = 4)           
+00071  pop                                                  
+00072  pop                                                  
+00073  getaliasedvar "index" (hops = 0, slot = 4)           
+00078  getaliasedvar "list" (hops = 0, slot = 2)            
+0007D  length       "length"                                
+00082  ge                                                   
+00083  ifeq         loc_000A9 (+38)                         
+00088  getaliasedvar "direction" (hops = 0, slot = 5)       
+0008D  not                                                  
+0008E  setaliasedvar "direction" (hops = 0, slot = 5)       
+00093  pop                                                  
+00094  zero                                                 
+00095  setaliasedvar "index" (hops = 0, slot = 4)           
+0009A  pop                                                  
+0009B  uint16       1000                                    
+0009E  setaliasedvar "time" (hops = 0, slot = 6)            
+000A3  pop                                                  
+000A4  goto         loc_000B2 (+14)                         
+
+loc_000A9:                                                  ; L169
+000A9  uint16       300                                     
+000AC  setaliasedvar "time" (hops = 0, slot = 6)            
+000B1  pop                                                  
+
+loc_000B2:                                                  ; L178
+000B2  getaliasedvar "animation" (hops = 0, slot = 7)       
+000B7  undefined                                            
+000B8  call         0                                       
+000BB  pop                                                  
+000BC  retrval                                              
+
+unknown
+00000  name         "document"                              
+00005  getprop      "body"                                  
+0000A  getprop      "style"                                 
+0000F  getprop      "background"                            
+00014  setaliasedvar "bgColor" (hops = 0, slot = 2)         
+00019  pop                                                  
+0001A  name         "document"                              
+0001F  getprop      "body"                                  
+00024  getprop      "style"                                 
+00029  string       "#000"                                  
+0002E  setprop      "background"                            
+00033  pop                                                  
+00034  name         "document"                              
+00039  dup                                                  
+0003A  callprop     "createElement"                         
+0003F  swap                                                 
+00040  string       "style"                                 
+00045  call         1                                       
+00048  setlocal     1                                       
+0004C  pop                                                  
+0004D  getlocal     1                                       
+00051  string       "text/css"                              
+00056  setprop      "type"                                  
+0005B  pop                                                  
+0005C  getlocal     1                                       
+00060  getaliasedvar "createStyle" (hops = 1, slot = 2)     
+00065  undefined                                            
+00066  call         0                                       
+00069  setprop      "innerHTML"                             
+0006E  pop                                                  
+0006F  name         "document"                              
+00074  getprop      "head"                                  
+00079  dup                                                  
+0007A  callprop     "appendChild"                           
+0007F  swap                                                 
+00080  getlocal     1                                       
+00084  call         1                                       
+00087  pop                                                  
+00088  getaliasedvar "createDom" (hops = 1, slot = 3)       
+0008D  undefined                                            
+0008E  call         0                                       
+00091  setlocal     2                                       
+00095  pop                                                  
+00096  getaliasedvar "startAnimation" (hops = 1, slot = 4)  
+0009B  undefined                                            
+0009C  getlocal     2                                       
+000A0  lambda       <object#0>                              
+000A5  call         2                                       
+000A8  pop                                                  
+000A9  retrval                                              
+
+unknown
+00000  name         "document"                              
+00005  dup                                                  
+00006  callprop     "getElementById"                        
+0000B  swap                                                 
+0000C  string       "cocosLoading"                          
+00011  call         1                                       
+00014  setlocal     0                                       
+00018  pop                                                  
+00019  getlocal     0                                       
+0001D  not                                                  
+0001E  ifeq         loc_0003D (+31)                         
+00023  name         "document"                              
+00028  getprop      "body"                                  
+0002D  getprop      "style"                                 
+00032  getaliasedvar "bgColor" (hops = 0, slot = 2)         
+00037  setprop      "background"                            
+0003C  pop                                                  
+
+loc_0003D:                                                  ; L61
+0003D  getlocal     0                                       
+00041  not                                                  
+00042  not                                                  
+00043  return                                               
+00044  retrval                                              
+

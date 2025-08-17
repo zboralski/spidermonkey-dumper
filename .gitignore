@@ -1,0 +1,31 @@
+# SpiderMonkey source tree (large download)
+mozilla-release/
+
+# Build outputs
+dumper
+dumper-test
+tests/bin/
+tests/actual/
+*.o
+*.dSYM/
+
+# SpiderMonkey build artifacts
+dist/
+
+# Test samples and dependencies (keep testdata, exclude large samples)
+samples/
+!samples/testdata/
+cocos2d-x/
+
+# macOS
+.DS_Store
+
+# Editor files
+*.swp
+*.swo
+*~
+*.bak
+.vscode/
+.claude/
+debug.lldb
+settings.local.json
