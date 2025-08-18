@@ -12,25 +12,11 @@ This tool is most useful for working with unencrypted .jsc files. Ironically, th
 
 ## Examples
 
-**[constants.jsc](samples/testdata/constants.jsc)** - Basic conditional logic and object initialization
-- [📋 Disassembled](samples/testdata/constants.dis) 
-- [📝 Decompiled](samples/testdata/constants.js)
-
-**[simple.jsc](samples/testdata/simple.jsc)** - Game scene management and asset loading  
-- [📋 Disassembled](samples/testdata/simple.dis)
-- [📝 Decompiled](samples/testdata/simple.js)
-
-**[minimal.jsc](samples/testdata/minimal.jsc)** - Cocos Creator UI framework integration
-- [📋 Disassembled](samples/testdata/minimal.dis)
-- [📝 Decompiled](samples/testdata/minimal.js)
-
-**[nested.jsc](samples/testdata/nested.jsc)** - Class inheritance with event handling
-- [📋 Disassembled](samples/testdata/nested.dis)
-- [📝 Decompiled](samples/testdata/nested.js)
-
-**[functions.jsc](samples/testdata/functions.jsc)** - Function definitions and closures
-- [📋 Disassembled](samples/testdata/functions.dis)
-- [📝 Decompiled](samples/testdata/functions.js)
+- **[constants.jsc](samples/testdata/constants.jsc)** - Basic conditional logic and object initialization ([disassembled](samples/testdata/constants.dis), [decompiled](samples/testdata/constants.js))
+- **[simple.jsc](samples/testdata/simple.jsc)** - Game scene management and asset loading ([disassembled](samples/testdata/simple.dis), [decompiled](samples/testdata/simple.js))
+- **[minimal.jsc](samples/testdata/minimal.jsc)** - Cocos Creator UI framework integration ([disassembled](samples/testdata/minimal.dis), [decompiled](samples/testdata/minimal.js))
+- **[nested.jsc](samples/testdata/nested.jsc)** - Class inheritance with event handling ([disassembled](samples/testdata/nested.dis), [decompiled](samples/testdata/nested.js))
+- **[functions.jsc](samples/testdata/functions.jsc)** - Function definitions and closures ([disassembled](samples/testdata/functions.dis), [decompiled](samples/testdata/functions.js))
 
 ## Quick Start
 
