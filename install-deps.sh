@@ -16,6 +16,7 @@ fi
 # Core dependencies for building SpiderMonkey dumper
 echo "Installing core dependencies..."
 brew install autoconf213 || true  # For SpiderMonkey build
+brew install mercurial || true    # Required for SpiderMonkey source checkout
 brew install nspr || true         # Netscape Portable Runtime (required by SpiderMonkey)
 brew install nlohmann-json || true  # Header-only JSON library for C++
 
