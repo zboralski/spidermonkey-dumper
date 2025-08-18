@@ -10,6 +10,28 @@ This tool is most useful for working with unencrypted .jsc files. Ironically, th
 - Automatic lambda/property mapping
 - Optional JavaScript reconstruction via Ollama
 
+## Examples
+
+**[constants.jsc](samples/testdata/constants.jsc)** - Basic conditional logic and object initialization
+- [📋 Disassembled](samples/testdata/constants.dis) 
+- [📝 Decompiled](samples/testdata/constants.js)
+
+**[simple.jsc](samples/testdata/simple.jsc)** - Game scene management and asset loading  
+- [📋 Disassembled](samples/testdata/simple.dis)
+- [📝 Decompiled](samples/testdata/simple.js)
+
+**[minimal.jsc](samples/testdata/minimal.jsc)** - Cocos Creator UI framework integration
+- [📋 Disassembled](samples/testdata/minimal.dis)
+- [📝 Decompiled](samples/testdata/minimal.js)
+
+**[nested.jsc](samples/testdata/nested.jsc)** - Class inheritance with event handling
+- [📋 Disassembled](samples/testdata/nested.dis)
+- [📝 Decompiled](samples/testdata/nested.js)
+
+**[functions.jsc](samples/testdata/functions.jsc)** - Function definitions and closures
+- [📋 Disassembled](samples/testdata/functions.dis)
+- [📝 Decompiled](samples/testdata/functions.js)
+
 ## Quick Start
 
 ### 1. Install Dependencies
