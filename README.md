@@ -49,7 +49,7 @@ make
 
 ## LLM Decompilation Setup
 
-For advanced decompilation features, install Ollama:
+For decompilation features, install Ollama:
 
 ```bash
 brew install ollama
