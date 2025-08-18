@@ -84,7 +84,17 @@ JS_CONF_CAND := \
   $(DIST_ROOT)include/mozjs-33/js/js-config.h \
   $(DIST_ROOT)lib/include/mozjs-33/js-config.h
 
-prepare-includes:
+
+# macOS system libs (usually fine as-is)
+SYS_LIBS := -lz $(CURL_LIBS)
+
+#
+# ===== Targets =====
+
+$(OUT): $(SRC) .prepare-includes
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) "$(LIBJS)" $(LDFLAGS) $(SYS_LIBS) -o $@
+
+.prepare-includes: 
 	@# Ensuring js-config.h is reachable from packaged headers
 	@mkdir -p "$(DIST_ROOT)include/mozjs-33/js" "$(DIST_ROOT)lib/include/mozjs-33"
 	@# Pick the first candidate that is a *regular file*
@@ -113,31 +123,23 @@ prepare-includes:
 	ls -l "$(DIST_ROOT)include/mozjs-33/js-config.h"; \
 	ls -l "$(DIST_ROOT)include/mozjs-33/js/js-config.h"; \
 	ls -l "$(DIST_ROOT)lib/include/mozjs-33/js-config.h"
+	@touch .prepare-includes
 
-# macOS system libs (usually fine as-is)
-SYS_LIBS := -lz $(CURL_LIBS)
-
-#
-# ===== Targets =====
-
-.PHONY: all clean print-sm prepare-includes test test-suite test-samples test-golden test-golden-update test-ollama test-basic test-inner test-resolve test-debug run print-curl
+.PHONY: all clean print-sm test test-suite test-samples test-golden test-golden-update test-ollama test-basic test-inner test-resolve test-debug run print-curl
 
 all: $(OUT)
-
-$(OUT): $(SRC) | prepare-includes
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SRC) "$(LIBJS)" $(LDFLAGS) $(SYS_LIBS) -o $@
 
 # Test build (same as main build now that Ollama is always enabled)
 CXXFLAGS_TEST = $(CXXFLAGS)
 TEST_BIN_DIR := tests/bin
 OUT_TEST     := $(TEST_BIN_DIR)/$(OUT)
 
-$(OUT_TEST): $(SRC) | prepare-includes
+$(OUT_TEST): $(SRC) .prepare-includes
 	@mkdir -p $(TEST_BIN_DIR)
 	$(CXX) $(CXXFLAGS_TEST) $(INCLUDES) $(SRC) "$(LIBJS)" $(LDFLAGS) $(SYS_LIBS) -o $@
 
 clean:
-	rm -f $(OUT) $(OUT_TEST) *.o tests/actual/*.dis
+	rm -f $(OUT) $(OUT_TEST) *.o tests/actual/*.dis .prepare-includes
 
 print-sm:
 	@echo "SM_SRC   = $(SM_SRC)"
