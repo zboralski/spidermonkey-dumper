@@ -20,6 +20,7 @@ This tool is most useful for working with unencrypted .jsc files. Ironically, th
 
 This installs:
 - `autoconf213` - For SpiderMonkey build
+- `mercurial` - Required for SpiderMonkey source checkout
 - `nspr` - Netscape Portable Runtime (required by SpiderMonkey)  
 - `curl` - HTTP client for LLM integration
 - `nlohmann-json` - JSON library for C++
