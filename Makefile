@@ -17,13 +17,14 @@ LDFLAGS  ?= -arch $(ARCH)
 
 
 # Resolve the library from either the SpiderMonkey build tree or local ./dist/*
+# Note: Use relative paths (./dist) instead of $(PWD) to handle paths with spaces
 LIBJS := $(firstword \
   $(wildcard $(SM_DIST)/lib/libmozjs*.a) \
   $(wildcard $(SM_DIST)/lib/libmozjs*.dylib) \
-  $(wildcard $(PWD)/dist/*/lib/libmozjs*.a) \
-  $(wildcard $(PWD)/dist/*/lib/libmozjs*.dylib) \
-  $(wildcard $(PWD)/dist/lib/libmozjs*.a) \
-  $(wildcard $(PWD)/dist/lib/libmozjs*.dylib) \
+  $(wildcard ./dist/*/lib/libmozjs*.a) \
+  $(wildcard ./dist/*/lib/libmozjs*.dylib) \
+  $(wildcard ./dist/lib/libmozjs*.a) \
+  $(wildcard ./dist/lib/libmozjs*.dylib) \
 )
 
 #
