@@ -4,6 +4,7 @@ mozilla-release/
 # Build outputs
 dumper
 dumper-test
+/sm33dis
 tests/bin/
 tests/actual/
 *.o
@@ -12,9 +13,7 @@ tests/actual/
 # SpiderMonkey build artifacts
 dist/
 
-# Test samples and dependencies (keep testdata, exclude large samples)
-samples/
-!samples/testdata/
+# Large dependencies
 cocos2d-x/
 
 # macOS
