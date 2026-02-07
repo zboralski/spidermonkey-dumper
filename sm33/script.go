@@ -50,6 +50,12 @@ type Script struct {
 	// Atoms referenced by bytecode
 	Atoms []string
 
+	// Constants referenced by bytecode
+	Consts []Const
+
+	// Regexps referenced by bytecode
+	Regexps []Regexp
+
 	// Inner objects (functions)
 	Objects []*Object
 
@@ -58,6 +64,35 @@ type Script struct {
 
 	// Binding names (args + vars)
 	Bindings []string
+}
+
+// ConstKind identifies the type of a script constant.
+type ConstKind uint8
+
+const (
+	ConstInt    ConstKind = iota // int32 value
+	ConstDouble                 // float64 value
+	ConstAtom                   // string atom
+	ConstTrue                   // boolean true
+	ConstFalse                  // boolean false
+	ConstNull                   // null
+	ConstVoid                   // undefined
+	ConstHole                   // JS_ARRAY_HOLE
+	ConstObject                 // object literal
+)
+
+// Const is a decoded script constant.
+type Const struct {
+	Kind   ConstKind
+	Int    int32   // valid when Kind == ConstInt
+	Double float64 // valid when Kind == ConstDouble
+	Atom   string  // valid when Kind == ConstAtom
+}
+
+// Regexp is a decoded script regexp.
+type Regexp struct {
+	Source string
+	Flags  uint32
 }
 
 // Object is a decoded XDR object entry.

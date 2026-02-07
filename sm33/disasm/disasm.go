@@ -140,7 +140,16 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 			}
 
 		case bytecode.JOF_REGEXP:
-			operand = " <RegExp>"
+			if idx, ok := bytecode.GetUint32Index(bc, off); ok {
+				if int(idx) < len(s.Regexps) {
+					rx := s.Regexps[idx]
+					operand = fmt.Sprintf(" /%s/%s", rx.Source, regexpFlags(rx.Flags))
+				} else {
+					operand = fmt.Sprintf(" <regexp#%d>", idx)
+				}
+			} else {
+				truncated = true
+			}
 
 		case bytecode.JOF_UINT16:
 			if val, ok := bytecode.GetUint16(bc, off); ok {
@@ -194,7 +203,11 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 
 		case bytecode.JOF_DOUBLE:
 			if idx, ok := bytecode.GetUint32Index(bc, off); ok {
-				operand = fmt.Sprintf(" <const#%d>", idx)
+				if int(idx) < len(s.Consts) {
+					operand = fmt.Sprintf(" %s", formatConst(s.Consts[idx]))
+				} else {
+					operand = fmt.Sprintf(" <const#%d>", idx)
+				}
 			} else {
 				truncated = true
 			}
@@ -287,6 +300,11 @@ func tagFunc(diags []sm33.Diagnostic, name string) {
 func DisasmTreeOpt(s *sm33.Script, opt sm33.Options) (sm33.Result[string], error) {
 	var b strings.Builder
 	var allDiags []sm33.Diagnostic
+
+	// Source filename header
+	if s.Filename != "" {
+		fmt.Fprintf(&b, "; %s\n", s.Filename)
+	}
 
 	// Main script
 	res, err := DisasmScriptOpt(s, "main", true, opt)
@@ -394,4 +412,49 @@ func DisasmScript(s *sm33.Script, funcName string, header bool) string {
 func DisasmTree(s *sm33.Script) string {
 	r, _ := DisasmTreeOpt(s, sm33.DefaultOptions())
 	return r.Value
+}
+
+// formatConst formats a decoded constant for display.
+func formatConst(c sm33.Const) string {
+	switch c.Kind {
+	case sm33.ConstInt:
+		return fmt.Sprintf("%d", c.Int)
+	case sm33.ConstDouble:
+		return fmt.Sprintf("%g", c.Double)
+	case sm33.ConstAtom:
+		return fmt.Sprintf("%q", c.Atom)
+	case sm33.ConstTrue:
+		return "true"
+	case sm33.ConstFalse:
+		return "false"
+	case sm33.ConstNull:
+		return "null"
+	case sm33.ConstVoid:
+		return "undefined"
+	case sm33.ConstHole:
+		return "<hole>"
+	case sm33.ConstObject:
+		return "<object>"
+	default:
+		return fmt.Sprintf("<const?%d>", c.Kind)
+	}
+}
+
+// regexpFlags converts SM33 regexp flag bits to a string.
+// SM33 flags: 1=global, 2=ignoreCase, 4=multiline, 8=sticky.
+func regexpFlags(flags uint32) string {
+	var s []byte
+	if flags&1 != 0 {
+		s = append(s, 'g')
+	}
+	if flags&2 != 0 {
+		s = append(s, 'i')
+	}
+	if flags&4 != 0 {
+		s = append(s, 'm')
+	}
+	if flags&8 != 0 {
+		s = append(s, 'y')
+	}
+	return string(s)
 }

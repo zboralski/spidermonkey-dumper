@@ -1,29 +1,34 @@
-# sm33dis
+# smdis
 
-Decode + disassemble SpiderMonkey 33 `.jsc` bytecode. Optional LLM-assisted “decompile” to JavaScript (best-effort).
+Decode + disassemble SpiderMonkey `.jsc` bytecode. Currently supports version 33 (Firefox 33, common in Cocos2d-x games). Optional LLM-assisted "decompile" to JavaScript (best-effort).
 
 ## Build
 
 ```bash
 go test ./...
-go build ./cmd/sm33dis
+go build ./cmd/smdis
 ```
 
 ## Usage
 
 ```bash
 # Disassemble (strict mode by default)
-./sm33dis path/to/file.jsc > out.dis
+./smdis path/to/file.jsc > out.dis
 
 # Best-effort mode keeps going on malformed inputs and prints diagnostics to stderr
-./sm33dis -mode=besteffort path/to/file.jsc > out.dis
+./smdis -mode=besteffort path/to/file.jsc > out.dis
 
 # Disassemble + decompile via an LLM backend
-./sm33dis -decompile -backend=claude-code samples/simple.jsc > /dev/null
-./sm33dis -decompile -backend=codex samples/simple.jsc > /dev/null
+./smdis -decompile -backend=claude-code samples/simple.jsc > /dev/null
+./smdis -decompile -backend=codex samples/simple.jsc > /dev/null
+
+# Generate graphs (requires graphviz: `dot` on PATH)
+./smdis -callgraph samples/simple.jsc
+./smdis -controlflow samples/simple.jsc
 ```
 
 Output files are written alongside the input: `file.dis` and (when `-decompile` is enabled) `file-<backend>.js`.
+Graph outputs (when enabled) are written alongside the input: `file.dot`/`file.svg`/`file.png` (callgraph) and `file.cfg.dot`/`file.cfg.svg`/`file.cfg.png` (control flow).
 
 ## Why This Exists (A Small RE Irony)
 
@@ -33,7 +38,17 @@ This tool focuses on the boring part: reliably parsing the raw XDR format and tu
 
 ## Samples
 
-See `samples/` for paired inputs/outputs: `.jsc` (input), `.dis` (disassembly), `*-claudecode.js` and `*-codex.js` (per-backend decompilations).
+Each `.jsc` input in `samples/` has paired outputs: `.dis` (disassembly), `*-claudecode.js` and `*-codex.js` (LLM decompilations), plus callgraph and control flow visualizations.
+
+Regenerate all with `make samples`.
+
+| Sample | Disassembly | Callgraph | Control Flow |
+|--------|-------------|-----------|--------------|
+| constants | [.dis](samples/constants.dis) | [svg](samples/constants.svg) | [svg](samples/constants.cfg.svg) |
+| functions | [.dis](samples/functions.dis) | [svg](samples/functions.svg) | [svg](samples/functions.cfg.svg) |
+| minimal | [.dis](samples/minimal.dis) | [svg](samples/minimal.svg) | [svg](samples/minimal.cfg.svg) |
+| nested | [.dis](samples/nested.dis) | [svg](samples/nested.svg) | [svg](samples/nested.cfg.svg) |
+| simple | [.dis](samples/simple.dis) | [svg](samples/simple.svg) | [svg](samples/simple.cfg.svg) |
 
 ## Reference Source
 

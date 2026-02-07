@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"unicode/utf16"
 
@@ -52,15 +53,19 @@ const (
 // In BestEffort mode, reads past EOF return zero-values and record diagnostics.
 // In Strict mode, reads past EOF return io.ErrUnexpectedEOF.
 type reader struct {
-	data  []byte
-	pos   int
-	mode  sm33.Mode
-	diags []sm33.Diagnostic
-	depth int
+	data         []byte
+	pos          int
+	mode         sm33.Mode
+	maxReadBytes int
+	diags        []sm33.Diagnostic
+	depth        int
 }
 
-func newReader(data []byte, mode sm33.Mode) *reader {
-	return &reader{data: data, mode: mode}
+func newReader(data []byte, mode sm33.Mode, maxReadBytes int) *reader {
+	if maxReadBytes <= 0 {
+		maxReadBytes = sm33.MaxReadBytes
+	}
+	return &reader{data: data, mode: mode, maxReadBytes: maxReadBytes}
 }
 
 func (r *reader) remaining() int {
@@ -120,17 +125,18 @@ func (r *reader) bytes(n int) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("bytes: negative count %d at offset %d: %w", n, r.pos, io.ErrUnexpectedEOF)
 	}
-	if n > sm33.MaxReadBytes {
+	if n > r.maxReadBytes {
 		if r.mode == sm33.BestEffort {
 			r.diags = append(r.diags, sm33.Diagnostic{
 				Offset: r.pos,
 				Kind:   "clamped",
-				Msg:    fmt.Sprintf("bytes(%d): clamped to %d", n, sm33.MaxReadBytes),
+				Msg: fmt.Sprintf("bytes(%d): clamped to %d (increase max read cap if this is expected)",
+					n, r.maxReadBytes),
 			})
-			n = sm33.MaxReadBytes
+			n = r.maxReadBytes
 		} else {
-			return nil, fmt.Errorf("bytes(%d) exceeds max %d at offset %d: %w",
-				n, sm33.MaxReadBytes, r.pos, io.ErrUnexpectedEOF)
+			return nil, fmt.Errorf("bytes(%d) exceeds max %d at offset %d (increase MaxReadBytes if this is expected): %w",
+				n, r.maxReadBytes, r.pos, io.ErrUnexpectedEOF)
 		}
 	}
 	if r.pos+n > len(r.data) {
@@ -261,7 +267,7 @@ func DecodeFileOpt(path string, opt sm33.Options) (sm33.Result[*sm33.Script], er
 
 // DecodeOpt parses XDR-encoded bytecode with options.
 func DecodeOpt(data []byte, opt sm33.Options) (sm33.Result[*sm33.Script], error) {
-	r := newReader(data, opt.Mode)
+	r := newReader(data, opt.Mode, opt.EffectiveMaxReadBytes())
 
 	magic, err := r.u32()
 	if err != nil {
@@ -404,7 +410,8 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 
 	// ScriptSource (only if OwnSource)
 	if scriptBits&(1<<sbOwnSource) != 0 {
-		if err = skipScriptSource(r); err != nil {
+		s.Filename, err = decodeScriptSource(r)
+		if err != nil {
 			return nil, fmt.Errorf("script source: %w", err)
 		}
 	}
@@ -459,14 +466,18 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 		}
 	}
 
-	// Consts (skip)
+	// Consts
 	nconsts, err = r.clampCount(nconsts, 4, "consts")
 	if err != nil {
 		return nil, err
 	}
-	for i := uint32(0); i < nconsts; i++ {
-		if err = skipConst(r); err != nil {
-			return nil, fmt.Errorf("const %d: %w", i, err)
+	if nconsts > 0 {
+		s.Consts = make([]sm33.Const, nconsts)
+		for i := uint32(0); i < nconsts; i++ {
+			s.Consts[i], err = decodeConst(r)
+			if err != nil {
+				return nil, fmt.Errorf("const %d: %w", i, err)
+			}
 		}
 	}
 
@@ -483,14 +494,18 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 		}
 	}
 
-	// Regexps (skip)
+	// Regexps
 	nregexps, err = r.clampCount(nregexps, 8, "regexps")
 	if err != nil {
 		return nil, err
 	}
-	for i := uint32(0); i < nregexps; i++ {
-		if err = skipRegexp(r); err != nil {
-			return nil, fmt.Errorf("regexp %d: %w", i, err)
+	if nregexps > 0 {
+		s.Regexps = make([]sm33.Regexp, nregexps)
+		for i := uint32(0); i < nregexps; i++ {
+			s.Regexps[i], err = decodeRegexp(r)
+			if err != nil {
+				return nil, fmt.Errorf("regexp %d: %w", i, err)
+			}
 		}
 	}
 
@@ -546,84 +561,89 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 	return s, nil
 }
 
-// skipScriptSource reads and discards ScriptSource::performXDR data.
-func skipScriptSource(r *reader) error {
+// decodeScriptSource reads ScriptSource::performXDR data and returns the filename.
+// Source text is skipped (all known SM33 Cocos2d-x files use retrievable=1,
+// meaning source is loaded from the .js file at runtime rather than embedded).
+func decodeScriptSource(r *reader) (string, error) {
 	hasSource, err := r.u8()
 	if err != nil {
-		return err
+		return "", err
 	}
 	retrievable, err := r.u8()
 	if err != nil {
-		return err
+		return "", err
 	}
 
+	var srcLength, compLength uint32
 	if hasSource != 0 && retrievable == 0 {
-		length, err := r.u32()
+		srcLength, err = r.u32()
 		if err != nil {
-			return err
+			return "", err
 		}
-		compressedLength, err := r.u32()
+		compLength, err = r.u32()
 		if err != nil {
-			return err
+			return "", err
 		}
 		// argumentsNotIncluded
 		if _, err = r.u8(); err != nil {
-			return err
+			return "", err
 		}
 		var byteLen uint32
-		if compressedLength != 0 {
-			byteLen = compressedLength
+		if compLength != 0 {
+			byteLen = compLength
 		} else {
-			byteLen = length * 2 // jschar = 2 bytes
+			byteLen = srcLength * 2 // jschar = 2 bytes
 		}
 		if _, err = r.bytes(int(byteLen)); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	// haveSourceMap
 	haveSourceMap, err := r.u8()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if haveSourceMap != 0 {
 		mapLen, err := r.u32()
 		if err != nil {
-			return err
+			return "", err
 		}
 		// jschar = 2 bytes per char
 		if _, err = r.bytes(int(mapLen) * 2); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	// haveDisplayURL
 	haveDisplayURL, err := r.u8()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if haveDisplayURL != 0 {
 		urlLen, err := r.u32()
 		if err != nil {
-			return err
+			return "", err
 		}
 		if _, err = r.bytes(int(urlLen) * 2); err != nil {
-			return err
+			return "", err
 		}
 	}
 
 	// haveFilename
 	haveFilename, err := r.u8()
 	if err != nil {
-		return err
+		return "", err
 	}
+	var filename string
 	if haveFilename != 0 {
-		if _, err = r.cstring(); err != nil {
-			return err
+		filename, err = r.cstring()
+		if err != nil {
+			return "", err
 		}
 	}
 
-	return nil
+	return filename, nil
 }
 
 // decodeObject reads one XDR object entry.
@@ -729,31 +749,51 @@ func decodeInterpretedFunction(r *reader) (*sm33.Function, error) {
 	return f, nil
 }
 
-// skipConst reads and discards one XDRScriptConst (also used as codeConstValue).
-func skipConst(r *reader) error {
+// decodeConst reads one XDRScriptConst.
+func decodeConst(r *reader) (sm33.Const, error) {
 	tag, err := r.u32()
 	if err != nil {
-		return err
+		return sm33.Const{}, err
 	}
 	switch tag {
 	case scriptInt:
-		if _, err = r.u32(); err != nil {
-			return err
+		v, err := r.u32()
+		if err != nil {
+			return sm33.Const{}, err
 		}
+		return sm33.Const{Kind: sm33.ConstInt, Int: int32(v)}, nil
 	case scriptDouble:
-		if _, err = r.bytes(8); err != nil {
-			return err
+		b, err := r.bytes(8)
+		if err != nil {
+			return sm33.Const{}, err
 		}
+		if len(b) < 8 {
+			// BestEffort: bytes() returned short slice, already recorded truncation diagnostic
+			return sm33.Const{Kind: sm33.ConstDouble}, nil
+		}
+		bits := binary.LittleEndian.Uint64(b)
+		return sm33.Const{Kind: sm33.ConstDouble, Double: math.Float64frombits(bits)}, nil
 	case scriptAtom:
-		if _, err = r.readAtom(); err != nil {
-			return err
+		s, err := r.readAtom()
+		if err != nil {
+			return sm33.Const{}, err
 		}
-	case scriptTrue, scriptFalse, scriptNull, scriptVoid, scriptHole:
-		// no extra data
+		return sm33.Const{Kind: sm33.ConstAtom, Atom: s}, nil
+	case scriptTrue:
+		return sm33.Const{Kind: sm33.ConstTrue}, nil
+	case scriptFalse:
+		return sm33.Const{Kind: sm33.ConstFalse}, nil
+	case scriptNull:
+		return sm33.Const{Kind: sm33.ConstNull}, nil
+	case scriptVoid:
+		return sm33.Const{Kind: sm33.ConstVoid}, nil
+	case scriptHole:
+		return sm33.Const{Kind: sm33.ConstHole}, nil
 	case scriptObject:
 		if err = skipObjectLiteral(r); err != nil {
-			return err
+			return sm33.Const{}, err
 		}
+		return sm33.Const{Kind: sm33.ConstObject}, nil
 	default:
 		if r.mode == sm33.BestEffort {
 			r.diags = append(r.diags, sm33.Diagnostic{
@@ -761,24 +801,29 @@ func skipConst(r *reader) error {
 				Kind:   "invalid",
 				Msg:    fmt.Sprintf("unknown const tag %d", tag),
 			})
-			return nil
+			return sm33.Const{}, nil
 		}
-		return fmt.Errorf("unknown const tag %d", tag)
+		return sm33.Const{}, fmt.Errorf("unknown const tag %d", tag)
 	}
-	return nil
 }
 
-// skipRegexp reads and discards one XDRScriptRegExpObject.
-func skipRegexp(r *reader) error {
-	// source atom
-	if _, err := r.readAtom(); err != nil {
-		return err
+// skipConst reads and discards one XDRScriptConst (used by skipObjectLiteral dense elements).
+func skipConst(r *reader) error {
+	_, err := decodeConst(r)
+	return err
+}
+
+// decodeRegexp reads one XDRScriptRegExpObject.
+func decodeRegexp(r *reader) (sm33.Regexp, error) {
+	source, err := r.readAtom()
+	if err != nil {
+		return sm33.Regexp{}, err
 	}
-	// flagsword
-	if _, err := r.u32(); err != nil {
-		return err
+	flags, err := r.u32()
+	if err != nil {
+		return sm33.Regexp{}, err
 	}
-	return nil
+	return sm33.Regexp{Source: source, Flags: flags}, nil
 }
 
 // skipStaticBlockObject reads and discards a StaticBlockObject.

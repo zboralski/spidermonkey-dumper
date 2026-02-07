@@ -26,7 +26,7 @@ func TestEmptyInput(t *testing.T) {
 }
 
 func TestNegativeBytes(t *testing.T) {
-	r := newReader([]byte{1, 2, 3}, sm33.Strict)
+	r := newReader([]byte{1, 2, 3}, sm33.Strict, sm33.MaxReadBytes)
 	_, err := r.bytes(-1)
 	if err == nil {
 		t.Fatal("expected error for negative byte count")
@@ -34,7 +34,7 @@ func TestNegativeBytes(t *testing.T) {
 }
 
 func TestNegativeBytesBestEffort(t *testing.T) {
-	r := newReader([]byte{1, 2, 3}, sm33.BestEffort)
+	r := newReader([]byte{1, 2, 3}, sm33.BestEffort, sm33.MaxReadBytes)
 	b, err := r.bytes(-1)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
@@ -51,7 +51,7 @@ func TestNegativeBytesBestEffort(t *testing.T) {
 }
 
 func TestHugeBytesStrict(t *testing.T) {
-	r := newReader(make([]byte, 100), sm33.Strict)
+	r := newReader(make([]byte, 100), sm33.Strict, sm33.MaxReadBytes)
 	_, err := r.bytes(sm33.MaxReadBytes + 1)
 	if err == nil {
 		t.Fatal("Strict should error on bytes exceeding MaxReadBytes")
@@ -59,7 +59,7 @@ func TestHugeBytesStrict(t *testing.T) {
 }
 
 func TestHugeBytesBestEffort(t *testing.T) {
-	r := newReader(make([]byte, 100), sm33.BestEffort)
+	r := newReader(make([]byte, 100), sm33.BestEffort, sm33.MaxReadBytes)
 	b, err := r.bytes(sm33.MaxReadBytes + 1)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)

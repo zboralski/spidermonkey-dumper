@@ -1,3 +1,4 @@
+; D:\projects\SAniMatchRS\frameworks\runtime-src\proj.android\app\assets\src\SplashScene.js
 loc     op
 -----   --
 00000  defvar       "stringHotUpdate"                       
@@ -142,14 +143,14 @@ loc_000B1:                                                  ; L177
 000E5  getlocal     4                                       
 000E9  getlocal     1                                       
 000ED  getprop      "width"                                 
-000F2  double       <const#0>                               
+000F2  double       0.5                                     
 000F7  mul                                                  
 000F8  setprop      "x"                                     
 000FD  pop                                                  
 000FE  getlocal     4                                       
 00102  getlocal     1                                       
 00106  getprop      "height"                                
-0010B  double       <const#1>                               
+0010B  double       0.5                                     
 00110  mul                                                  
 00111  setprop      "y"                                     
 00116  pop                                                  
@@ -172,14 +173,14 @@ loc_000B1:                                                  ; L177
 00148  getlocal     5                                       
 0014C  getlocal     1                                       
 00150  getprop      "width"                                 
-00155  double       <const#2>                               
+00155  double       0.5                                     
 0015A  mul                                                  
 0015B  setprop      "x"                                     
 00160  pop                                                  
 00161  getlocal     5                                       
 00165  getlocal     1                                       
 00169  getprop      "height"                                
-0016E  double       <const#3>                               
+0016E  double       0.5                                     
 00173  mul                                                  
 00174  setprop      "y"                                     
 00179  pop                                                  
@@ -210,7 +211,7 @@ loc_000B1:                                                  ; L177
 001C1  swap                                                 
 001C2  call         0                                       
 001C5  getprop      "width"                                 
-001CA  double       <const#4>                               
+001CA  double       0.5                                     
 001CF  mul                                                  
 001D0  getlocal     5                                       
 001D4  dup                                                  
@@ -218,7 +219,7 @@ loc_000B1:                                                  ; L177
 001DA  swap                                                 
 001DB  call         0                                       
 001DE  getprop      "height"                                
-001E3  double       <const#5>                               
+001E3  double       0.5                                     
 001E8  mul                                                  
 001E9  call         2                                       
 001EC  pop                                                  
@@ -274,7 +275,7 @@ loc_000B1:                                                  ; L177
 0027A  swap                                                 
 0027B  call         0                                       
 0027E  getprop      "width"                                 
-00283  double       <const#6>                               
+00283  double       0.5                                     
 00288  mul                                                  
 00289  setprop      "x"                                     
 0028E  pop                                                  
@@ -287,7 +288,7 @@ loc_000B1:                                                  ; L177
 002A0  call         0                                       
 002A3  getprop      "height"                                
 002A8  neg                                                  
-002A9  double       <const#7>                               
+002A9  double       0.6868                                  
 002AE  mul                                                  
 002AF  setprop      "y"                                     
 002B4  pop                                                  
@@ -319,7 +320,7 @@ loc_000B1:                                                  ; L177
 002FD  swap                                                 
 002FE  this                                                 
 002FF  lambda_arrow <object#1>                              
-00304  double       <const#8>                               
+00304  double       0.03                                    
 00309  call         2                                       
 0030C  pop                                                  
 0030D  name         "cc"                                    
@@ -1011,7 +1012,7 @@ SplashScene<.ctor/<
 00000  getaliasedvar 0 2                                    ; hops=0 slot=2
 00005  dup                                                  
 00006  getprop      "count"                                 
-0000B  double       <const#0>                               
+0000B  double       0.01                                    
 00010  add                                                  
 00011  setprop      "count"                                 
 00016  pop                                                  

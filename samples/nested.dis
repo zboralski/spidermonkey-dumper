@@ -1,3 +1,4 @@
+; D:\projects\SAniMatchRS\frameworks\runtime-src\proj.android\app\assets\src\framework\BaseScreen.js
 loc     op
 -----   --
 00000  defvar       "BaseScreen"                            
@@ -75,7 +76,7 @@ BaseScreen<.ctor
 00012  dup                                                  
 00013  callprop     "tintTo"                                
 00018  swap                                                 
-00019  double       <const#0>                               
+00019  double       0.5                                     
 0001E  uint16       140                                     
 00021  uint16       140                                     
 00024  uint16       140                                     
@@ -186,8 +187,8 @@ loc_000ED:                                                  ; L237
 000FF  dup                                                  
 00100  callprop     "p"                                     
 00105  swap                                                 
-00106  double       <const#0>                               
-0010B  double       <const#1>                               
+00106  double       0.5                                     
+0010B  double       0.5                                     
 00110  call         2                                       
 00113  call         1                                       
 00116  pop                                                  
@@ -590,7 +591,7 @@ BaseScreen<.createFog
 000C5  dup                                                  
 000C6  callprop     "setOpacity"                            
 000CB  swap                                                 
-000CC  double       <const#0>                               
+000CC  double       127.49999999999999                      
 000D1  call         1                                       
 000D4  pop                                                  
 000D5  goto         loc_000F4 (+31)                         
@@ -601,7 +602,7 @@ loc_000DA:                                                  ; L218
 000E0  dup                                                  
 000E1  callprop     "setOpacity"                            
 000E6  swap                                                 
-000E7  double       <const#1>                               
+000E7  double       2.55                                    
 000EC  getarg       0                                       ; arg[0]
 000EF  mul                                                  
 000F0  call         1                                       

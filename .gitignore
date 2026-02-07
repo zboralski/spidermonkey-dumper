@@ -4,7 +4,8 @@ mozilla-release/
 # Build outputs
 dumper
 dumper-test
-/sm33dis
+/smdis
+/xdraudit
 tests/bin/
 tests/actual/
 *.o
@@ -28,3 +29,12 @@ cocos2d-x/
 .claude/
 debug.lldb
 settings.local.json
+scratch/
+
+# Fuzz corpora are local artifacts; keep seeds in code/tests instead.
+**/testdata/fuzz/
+
+# Generated sample outputs (graphs).
+# We keep rendered outputs (SVG/PNG) versioned so they’re visible in the repo.
+samples/*.dot
+samples/*.cfg.dot

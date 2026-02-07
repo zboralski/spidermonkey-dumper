@@ -12,8 +12,14 @@ const (
 
 // Options configures decode and disassembly behavior.
 type Options struct {
-	Mode     Mode
-	MaxSteps int // safety cap for loop iterations; 0 uses default
+	Mode Mode
+
+	// MaxSteps is a safety cap for loop iterations; 0 uses DefaultMaxSteps.
+	MaxSteps int
+
+	// MaxReadBytes caps any single bytes() allocation during XDR decode; 0 uses sm33.MaxReadBytes.
+	// This is a DoS/OOM guard. Larger caps can be necessary for real-world .jsc files.
+	MaxReadBytes int
 }
 
 // DefaultOptions returns Strict mode with default step limit.
@@ -30,6 +36,14 @@ func (o Options) EffectiveMaxSteps() int {
 		return DefaultMaxSteps
 	}
 	return o.MaxSteps
+}
+
+// EffectiveMaxReadBytes returns the effective bytes() cap for decode.
+func (o Options) EffectiveMaxReadBytes() int {
+	if o.MaxReadBytes <= 0 {
+		return MaxReadBytes
+	}
+	return o.MaxReadBytes
 }
 
 // Diagnostic records one anomaly found during decode or disassembly.
