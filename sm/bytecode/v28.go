@@ -1,44 +1,11 @@
 package bytecode
 
-// JOF_* constants define opcode operand format types
-const (
-	JOF_BYTE       = 0
-	JOF_JUMP       = 1
-	JOF_ATOM       = 2
-	JOF_UINT16     = 3
-	JOF_TABLESWITCH = 4
-	JOF_QARG       = 6
-	JOF_LOCAL      = 7
-	JOF_DOUBLE     = 8
-	JOF_UINT24     = 12
-	JOF_UINT8      = 13
-	JOF_INT32      = 14
-	JOF_OBJECT     = 15
-	JOF_REGEXP     = 17
-	JOF_INT8       = 18
-	JOF_ATOMOBJECT = 19
-	JOF_SCOPECOORD = 21
-	JOF_TYPEMASK   = 0x001f
-)
-
-// OpInfo holds metadata about a bytecode operation
-type OpInfo struct {
-	Name   string
-	Length int8
-	Format uint32
-}
-
-// JofType extracts the operand type from a format value
-func JofType(format uint32) uint32 {
-	return format & JOF_TYPEMASK
-}
-
-// Opcodes is the SpiderMonkey 33.1.1 opcode table
-var Opcodes = [256]OpInfo{
+// OpcodeTableV28 is the SpiderMonkey 28 opcode table
+var OpcodeTableV28 = [256]OpInfo{
 	0:   {"nop", 1, JOF_BYTE},
 	1:   {"undefined", 1, JOF_BYTE},
 	2:   {"unused2", 1, JOF_BYTE},
-	3:   {"enterwith", 5, JOF_OBJECT},
+	3:   {"enterwith", 1, JOF_BYTE},
 	4:   {"leavewith", 1, JOF_BYTE},
 	5:   {"return", 1, JOF_BYTE},
 	6:   {"goto", 5, JOF_JUMP},
@@ -79,7 +46,7 @@ var Opcodes = [256]OpInfo{
 	41:  {"spreadcall", 1, JOF_BYTE},
 	42:  {"spreadnew", 1, JOF_BYTE},
 	43:  {"spreadeval", 1, JOF_BYTE},
-	44:  {"dupat", 4, JOF_UINT24},
+	44:  {"unused44", 1, JOF_BYTE},
 	45:  {"unused45", 1, JOF_BYTE},
 	46:  {"unused46", 1, JOF_BYTE},
 	47:  {"unused47", 1, JOF_BYTE},
@@ -92,7 +59,7 @@ var Opcodes = [256]OpInfo{
 	54:  {"setprop", 5, JOF_ATOM},
 	55:  {"getelem", 1, JOF_BYTE},
 	56:  {"setelem", 1, JOF_BYTE},
-	57:  {"unused57", 1, JOF_BYTE},
+	57:  {"callname", 5, JOF_ATOM},
 	58:  {"call", 3, JOF_UINT16},
 	59:  {"name", 5, JOF_ATOM},
 	60:  {"double", 5, JOF_DOUBLE},
@@ -118,11 +85,11 @@ var Opcodes = [256]OpInfo{
 	80:  {"object", 5, JOF_OBJECT},
 	81:  {"pop", 1, JOF_BYTE},
 	82:  {"new", 3, JOF_UINT16},
-	83:  {"unused83", 1, JOF_BYTE},
+	83:  {"spread", 1, JOF_BYTE},
 	84:  {"getarg", 3, JOF_QARG},
 	85:  {"setarg", 3, JOF_QARG},
-	86:  {"getlocal", 4, JOF_LOCAL},
-	87:  {"setlocal", 4, JOF_LOCAL},
+	86:  {"getlocal", 3, JOF_LOCAL},
+	87:  {"setlocal", 3, JOF_LOCAL},
 	88:  {"uint16", 3, JOF_UINT16},
 	89:  {"newinit", 5, JOF_UINT8},
 	90:  {"newarray", 4, JOF_UINT24},
@@ -140,7 +107,7 @@ var Opcodes = [256]OpInfo{
 	102: {"unused102", 1, JOF_BYTE},
 	103: {"unused103", 1, JOF_BYTE},
 	104: {"unused104", 1, JOF_BYTE},
-	105: {"unused105", 1, JOF_BYTE},
+	105: {"leaveforletin", 1, JOF_BYTE},
 	106: {"label", 5, JOF_JUMP},
 	107: {"unused107", 1, JOF_BYTE},
 	108: {"funcall", 3, JOF_UINT16},
@@ -159,7 +126,7 @@ var Opcodes = [256]OpInfo{
 	121: {"case", 5, JOF_JUMP},
 	122: {"default", 5, JOF_JUMP},
 	123: {"eval", 3, JOF_UINT16},
-	124: {"unused124", 1, JOF_BYTE},
+	124: {"enumelem", 1, JOF_BYTE},
 	125: {"unused125", 1, JOF_BYTE},
 	126: {"unused126", 1, JOF_BYTE},
 	127: {"deffun", 5, JOF_OBJECT},
@@ -172,16 +139,16 @@ var Opcodes = [256]OpInfo{
 	134: {"try", 1, JOF_BYTE},
 	135: {"finally", 1, JOF_BYTE},
 	136: {"getaliasedvar", 5, JOF_SCOPECOORD},
-	137: {"setaliasedvar", 5, JOF_SCOPECOORD},
-	138: {"unused138", 1, JOF_BYTE},
+	137: {"callaliasedvar", 5, JOF_SCOPECOORD},
+	138: {"setaliasedvar", 5, JOF_SCOPECOORD},
 	139: {"unused139", 1, JOF_BYTE},
 	140: {"unused140", 1, JOF_BYTE},
 	141: {"unused141", 1, JOF_BYTE},
 	142: {"unused142", 1, JOF_BYTE},
 	143: {"getintrinsic", 5, JOF_ATOM},
-	144: {"setintrinsic", 5, JOF_ATOM},
-	145: {"bindintrinsic", 5, JOF_ATOM},
-	146: {"unused146", 1, JOF_BYTE},
+	144: {"callintrinsic", 5, JOF_ATOM},
+	145: {"setintrinsic", 5, JOF_ATOM},
+	146: {"bindintrinsic", 5, JOF_ATOM},
 	147: {"unused147", 1, JOF_BYTE},
 	148: {"unused148", 1, JOF_BYTE},
 	149: {"backpatch", 5, JOF_JUMP},
@@ -220,35 +187,35 @@ var Opcodes = [256]OpInfo{
 	182: {"unused182", 1, JOF_BYTE},
 	183: {"unused183", 1, JOF_BYTE},
 	184: {"callprop", 5, JOF_ATOM},
-	185: {"unused185", 1, JOF_BYTE},
-	186: {"unused186", 1, JOF_BYTE},
-	187: {"unused187", 1, JOF_BYTE},
+	185: {"enterlet0", 5, JOF_OBJECT},
+	186: {"enterlet1", 5, JOF_OBJECT},
+	187: {"enterlet2", 5, JOF_OBJECT},
 	188: {"uint24", 4, JOF_UINT24},
 	189: {"unused189", 1, JOF_BYTE},
 	190: {"unused190", 1, JOF_BYTE},
 	191: {"unused191", 1, JOF_BYTE},
 	192: {"unused192", 1, JOF_BYTE},
 	193: {"callelem", 1, JOF_BYTE},
-	194: {"mutateproto", 1, JOF_BYTE},
+	194: {"unused194", 1, JOF_BYTE},
 	195: {"getxprop", 5, JOF_ATOM},
 	196: {"unused196", 1, JOF_BYTE},
 	197: {"typeofexpr", 1, JOF_BYTE},
-	198: {"pushblockscope", 5, JOF_OBJECT},
-	199: {"popblockscope", 1, JOF_BYTE},
+	198: {"enterblock", 5, JOF_OBJECT},
+	199: {"leaveblock", 3, JOF_UINT16},
 	200: {"debugleaveblock", 1, JOF_BYTE},
 	201: {"unused201", 1, JOF_BYTE},
 	202: {"generator", 1, JOF_BYTE},
 	203: {"yield", 1, JOF_BYTE},
-	204: {"arraypush", 1, JOF_BYTE},
-	205: {"unused205", 1, JOF_BYTE},
-	206: {"unused206", 1, JOF_BYTE},
-	207: {"unused207", 1, JOF_BYTE},
+	204: {"arraypush", 3, JOF_LOCAL},
+	205: {"getfunns", 1, JOF_BYTE},
+	206: {"enumconstelem", 1, JOF_BYTE},
+	207: {"leaveblockexpr", 3, JOF_UINT16},
 	208: {"unused208", 1, JOF_BYTE},
 	209: {"unused209", 1, JOF_BYTE},
 	210: {"unused210", 1, JOF_BYTE},
-	211: {"unused211", 1, JOF_BYTE},
-	212: {"unused212", 1, JOF_BYTE},
-	213: {"unused213", 1, JOF_BYTE},
+	211: {"callgname", 5, JOF_ATOM},
+	212: {"calllocal", 3, JOF_LOCAL},
+	213: {"callarg", 3, JOF_QARG},
 	214: {"bindgname", 5, JOF_ATOM},
 	215: {"int8", 2, JOF_INT8},
 	216: {"int32", 5, JOF_INT32},
@@ -263,6 +230,6 @@ var Opcodes = [256]OpInfo{
 	225: {"toid", 1, JOF_BYTE},
 	226: {"implicitthis", 5, JOF_ATOM},
 	227: {"loopentry", 2, JOF_UINT8},
-	228: {"tostring", 1, JOF_BYTE},
+	228: {"notearg", 1, JOF_BYTE},
 	// 229-255 remain zero-valued
 }

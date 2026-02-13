@@ -8,7 +8,7 @@ main
 00009  setrval                                              
 0000A  retrval                                              
 
-unknown
+anon#0
 00000  lambda       <object#0>                              
 00005  setaliasedvar 0 2                                    ; hops=0 slot=2
 0000A  pop                                                  
@@ -338,7 +338,7 @@ loc_000B2:                                                  ; L178
 000BB  pop                                                  
 000BC  retrval                                              
 
-unknown
+anon#3
 00000  name         "document"                              
 00005  getprop      "body"                                  
 0000A  getprop      "style"                                 
@@ -390,7 +390,7 @@ unknown
 000A8  pop                                                  
 000A9  retrval                                              
 
-unknown
+anon#0
 00000  name         "document"                              
 00005  dup                                                  
 00006  callprop     "getElementById"                        

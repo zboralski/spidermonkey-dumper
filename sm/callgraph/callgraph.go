@@ -3,56 +3,30 @@ package callgraph
 import (
 	"fmt"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
-	"github.com/zboralski/spidermonkey-dumper/sm33/bytecode"
+	"github.com/zboralski/lattice"
+	"github.com/zboralski/spidermonkey-dumper/sm"
+	"github.com/zboralski/spidermonkey-dumper/sm/bytecode"
 )
 
-// Edge represents a call from one function to another.
-type Edge struct {
-	Caller string
-	Callee string
-	Args   []string // literal arguments observed at call site
+// builder holds internal state for graph construction.
+type builder struct {
+	graph *lattice.Graph
+	ops   *[256]bytecode.OpInfo
 }
-
-// Graph holds the callgraph for a decoded script.
-type Graph struct {
-	Nodes []string // function names
-	Edges []Edge
-}
-
-// opcode constants for call pattern detection.
-const (
-	opGetprop  = 53
-	opCall     = 58
-	opName     = 59
-	opNew      = 82
-	opFuncall  = 108
-	opFunapply = 79
-	opGetgname = 154
-	opCallprop = 184
-)
-
-// opcode constants for literal-pushing instructions.
-const (
-	opString = 61  // JOF_ATOM — pushes string from atom table
-	opDouble = 60  // JOF_DOUBLE — pushes double from consts
-	opInt8   = 215 // JOF_INT8
-	opInt32  = 216 // JOF_INT32
-	opUint16 = 88  // JOF_UINT16
-	opUint24 = 188 // JOF_UINT24
-	opZero   = 62
-	opOne    = 63
-	opNull   = 64
-	opTrue   = 67
-	opFalse  = 66
-)
 
 // Build constructs a callgraph from a decoded Script.
-func Build(s *sm33.Script) *Graph {
-	g := &Graph{}
-	g.walkScript(s, "main")
-	g.dedup()
-	return g
+// Panics if ops is nil.
+func Build(s *sm.Script, ops *[256]bytecode.OpInfo) *lattice.Graph {
+	if ops == nil {
+		panic("callgraph.Build: ops must not be nil")
+	}
+	b := &builder{
+		graph: &lattice.Graph{},
+		ops:   ops,
+	}
+	b.walkScript(s, "main")
+	b.graph.Dedup()
+	return b.graph
 }
 
 // callInfo pairs a callee name with observed literal arguments.
@@ -62,18 +36,18 @@ type callInfo struct {
 }
 
 // walkScript extracts calls from a single script and recurses into inner functions.
-func (g *Graph) walkScript(s *sm33.Script, name string) {
-	g.Nodes = append(g.Nodes, name)
+func (b *builder) walkScript(s *sm.Script, name string) {
+	b.graph.Nodes = append(b.graph.Nodes, name)
 
 	// Scan bytecode for call patterns
-	calls := scanCalls(s)
+	calls := scanCalls(s, b.ops)
 	for _, ci := range calls {
-		g.Edges = append(g.Edges, Edge{Caller: name, Callee: ci.callee, Args: ci.args})
+		b.graph.Edges = append(b.graph.Edges, lattice.Edge{Caller: name, Callee: ci.callee, Args: ci.args})
 	}
 
 	// Recurse into inner functions
 	for i, obj := range s.Objects {
-		if obj.Kind != sm33.CkJSFunction || obj.Function == nil {
+		if obj.Kind != sm.CkJSFunction || obj.Function == nil {
 			continue
 		}
 		fn := obj.Function
@@ -83,18 +57,19 @@ func (g *Graph) walkScript(s *sm33.Script, name string) {
 		}
 
 		// The defining script contains this function
-		g.Edges = append(g.Edges, Edge{Caller: name, Callee: innerName})
+		b.graph.Edges = append(b.graph.Edges, lattice.Edge{Caller: name, Callee: innerName})
 
 		if fn.Script != nil && !fn.IsLazy {
-			g.walkScript(fn.Script, innerName)
+			b.walkScript(fn.Script, innerName)
 		} else {
-			g.Nodes = append(g.Nodes, innerName)
+			b.graph.Nodes = append(b.graph.Nodes, innerName)
 		}
 	}
 }
 
 // scanCalls finds call targets and their literal arguments by scanning bytecode.
-func scanCalls(s *sm33.Script) []callInfo {
+// Opcode matching uses the ops table by name, so this works across SM versions.
+func scanCalls(s *sm.Script, ops *[256]bytecode.OpInfo) []callInfo {
 	bc := s.Bytecode
 	var calls []callInfo
 	seen := map[string]bool{}
@@ -109,14 +84,17 @@ func scanCalls(s *sm33.Script) []callInfo {
 	off := 0
 	for off < len(bc) {
 		op := bc[off]
-		n := bytecode.InstrLen(bc, off)
+		n := bytecode.InstrLen(bc, off, ops)
 		if n <= 0 {
-			break
+			// Unknown instruction — skip 1 byte and keep scanning for calls
+			off++
+			continue
 		}
+		name := ops[op].Name
 
-		switch op {
+		switch name {
 		// Literal-pushing opcodes — accumulate for arg tracking
-		case opString:
+		case "string":
 			if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 				if int(idx) < len(s.Atoms) {
 					lit := s.Atoms[idx]
@@ -126,41 +104,41 @@ func scanCalls(s *sm33.Script) []callInfo {
 					litBuf = appendLit(litBuf, "\""+lit+"\"")
 				}
 			}
-		case opDouble:
+		case "double":
 			if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 				if int(idx) < len(s.Consts) {
 					litBuf = appendLit(litBuf, formatConstLit(s.Consts[idx]))
 				}
 			}
-		case opInt8:
+		case "int8":
 			if v, ok := bytecode.GetInt8(bc, off); ok {
 				litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 			}
-		case opInt32:
+		case "int32":
 			if v, ok := bytecode.GetInt32(bc, off); ok {
 				litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 			}
-		case opUint16:
+		case "uint16":
 			if v, ok := bytecode.GetUint16(bc, off); ok {
 				litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 			}
-		case opUint24:
+		case "uint24":
 			if v, ok := bytecode.GetUint24(bc, off); ok {
 				litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 			}
-		case opZero:
+		case "zero":
 			litBuf = appendLit(litBuf, "0")
-		case opOne:
+		case "one":
 			litBuf = appendLit(litBuf, "1")
-		case opNull:
+		case "null":
 			litBuf = appendLit(litBuf, "null")
-		case opTrue:
+		case "true":
 			litBuf = appendLit(litBuf, "true")
-		case opFalse:
+		case "false":
 			litBuf = appendLit(litBuf, "false")
 
 		// Call opcodes — emit edge with captured literals
-		case opCallprop:
+		case "callprop":
 			if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 				if int(idx) < len(s.Atoms) {
 					atom := s.Atoms[idx]
@@ -173,7 +151,9 @@ func scanCalls(s *sm33.Script) []callInfo {
 			litBuf = litBuf[:0]
 			lastAtom = ""
 
-		case opGetprop, opGetgname, opName:
+		case "getprop", "getgname", "name",
+			"callname", "callgname":
+			// v28 uses callname/callgname as combined name+this push opcodes.
 			if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 				if int(idx) < len(s.Atoms) {
 					lastAtom = s.Atoms[idx]
@@ -181,7 +161,7 @@ func scanCalls(s *sm33.Script) []callInfo {
 				}
 			}
 
-		case opCall, opNew, opFuncall, opFunapply:
+		case "call", "new", "funcall", "funapply":
 			if lastAtom != "" && off-lastAtomOff < 20 {
 				if !seen[lastAtom] {
 					seen[lastAtom] = true
@@ -217,38 +197,25 @@ func cloneLits(buf []string) []string {
 }
 
 // formatConstLit renders a Const as a short literal string.
-func formatConstLit(c sm33.Const) string {
+func formatConstLit(c sm.Const) string {
 	switch c.Kind {
-	case sm33.ConstInt:
+	case sm.ConstInt:
 		return fmt.Sprintf("%d", c.Int)
-	case sm33.ConstDouble:
+	case sm.ConstDouble:
 		return fmt.Sprintf("%g", c.Double)
-	case sm33.ConstAtom:
+	case sm.ConstAtom:
 		s := c.Atom
 		if len(s) > 24 {
 			s = s[:24] + "\u2026"
 		}
 		return "\"" + s + "\""
-	case sm33.ConstTrue:
+	case sm.ConstTrue:
 		return "true"
-	case sm33.ConstFalse:
+	case sm.ConstFalse:
 		return "false"
-	case sm33.ConstNull:
+	case sm.ConstNull:
 		return "null"
 	default:
 		return ""
 	}
-}
-
-// dedup removes duplicate nodes.
-func (g *Graph) dedup() {
-	seen := map[string]bool{}
-	var nodes []string
-	for _, n := range g.Nodes {
-		if !seen[n] {
-			seen[n] = true
-			nodes = append(nodes, n)
-		}
-	}
-	g.Nodes = nodes
 }

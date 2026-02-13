@@ -1,4 +1,4 @@
-package sm33
+package sm
 
 // XDR object class kinds.
 const (
@@ -25,7 +25,7 @@ type TryNote struct {
 	Length     uint32
 }
 
-// Script is a decoded SpiderMonkey 33 script.
+// Script is a decoded SpiderMonkey script (v28 or v33).
 type Script struct {
 	// Header
 	Nargs        uint16

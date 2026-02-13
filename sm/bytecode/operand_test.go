@@ -36,7 +36,7 @@ func TestTableswitchAbsurdRange(t *testing.T) {
 	bc[11] = 0xFF
 	bc[12] = 0xFF
 
-	n := InstrLen(bc, 0)
+	n := InstrLen(bc, 0, &OpcodeTableV33)
 	if n != -1 {
 		t.Errorf("expected -1 for absurd tableswitch range, got %d", n)
 	}

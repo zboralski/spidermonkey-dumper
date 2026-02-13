@@ -1,6 +1,6 @@
 # smdis
 
-Decode + disassemble SpiderMonkey `.jsc` bytecode. Currently supports version 33 (Firefox 33, common in Cocos2d-x games). Optional LLM-assisted "decompile" to JavaScript (best-effort).
+Decode + disassemble SpiderMonkey `.jsc` bytecode. Supports version 28 and 33 (auto-detected from XDR magic). Common in Cocos2d-x games. Optional LLM-assisted "decompile" to JavaScript (best-effort).
 
 ## Build
 
@@ -24,7 +24,7 @@ go build ./cmd/smdis
 
 # Generate graphs (requires graphviz: `dot` on PATH)
 ./smdis -callgraph samples/simple.jsc
-./smdis -controlflow samples/simple.jsc
+./smdis -cfg samples/simple.jsc
 ```
 
 Output files are written alongside the input: `file.dis` and (when `-decompile` is enabled) `file-<backend>.js`.
@@ -52,7 +52,7 @@ Regenerate all with `make samples`.
 
 ## Reference Source
 
-Built from [SpiderMonkey 33](https://hg.mozilla.org/releases/mozilla-release/file/FIREFOX_33_0_RELEASE/js/src/) (Firefox 33):
+Built from [SpiderMonkey 33](https://hg.mozilla.org/releases/mozilla-release/file/FIREFOX_33_0_RELEASE/js/src/) (Firefox 33) and [SpiderMonkey 28](https://github.com/nickygerritsen/spidermonkey-jsc-decompiler/tree/sm28) (Firefox 28):
 
 - [Opcodes.h](https://hg.mozilla.org/releases/mozilla-release/file/FIREFOX_33_0_RELEASE/js/src/vm/Opcodes.h) — opcode definitions
 - [jsopcode.h](https://hg.mozilla.org/releases/mozilla-release/file/FIREFOX_33_0_RELEASE/js/src/jsopcode.h), [jsopcode.cpp](https://hg.mozilla.org/releases/mozilla-release/file/FIREFOX_33_0_RELEASE/js/src/jsopcode.cpp) — opcode implementation

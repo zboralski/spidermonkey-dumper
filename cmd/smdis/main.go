@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
@@ -9,15 +10,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
-	"github.com/zboralski/spidermonkey-dumper/sm33/callgraph"
-	"github.com/zboralski/spidermonkey-dumper/sm33/callgraph/render"
-	"github.com/zboralski/spidermonkey-dumper/sm33/decompile"
-	"github.com/zboralski/spidermonkey-dumper/sm33/disasm"
-	"github.com/zboralski/spidermonkey-dumper/sm33/xdr"
+	"github.com/zboralski/lattice/render"
+	"github.com/zboralski/spidermonkey-dumper/sm"
+	"github.com/zboralski/spidermonkey-dumper/sm/callgraph"
+	"github.com/zboralski/spidermonkey-dumper/sm/decompile"
+	"github.com/zboralski/spidermonkey-dumper/sm/disasm"
+	"github.com/zboralski/spidermonkey-dumper/sm/xdr"
 )
 
-func printDiag(d sm33.Diagnostic) {
+func printDiag(d sm.Diagnostic) {
 	if d.Func != "" {
 		fmt.Fprintf(os.Stderr, "diag [%s] %s @0x%x: %s\n", d.Kind, d.Func, d.Offset, d.Msg)
 	} else {
@@ -28,7 +29,7 @@ func printDiag(d sm33.Diagnostic) {
 func main() {
 	decompileFlag := flag.Bool("decompile", false, "decompile bytecode via LLM")
 	callgraphFlag := flag.Bool("callgraph", false, "generate callgraph SVG")
-	cfgFlag := flag.Bool("controlflow", false, "generate control flow graph SVG")
+	cfgFlag := flag.Bool("cfg", false, "generate control flow graph SVG")
 	backend := flag.String("backend", "claude-code", "LLM backend: claude-code, codex")
 	model := flag.String("model", "", "model name (backend-specific)")
 	modeName := flag.String("mode", "strict", "decode mode: strict, besteffort")
@@ -44,12 +45,12 @@ func main() {
 		os.Exit(2)
 	}
 
-	var opt sm33.Options
+	var opt sm.Options
 	switch *modeName {
 	case "strict":
-		opt = sm33.DefaultOptions()
+		opt = sm.DefaultOptions()
 	case "besteffort":
-		opt = sm33.Options{Mode: sm33.BestEffort}
+		opt = sm.Options{Mode: sm.BestEffort}
 	default:
 		fmt.Fprintf(os.Stderr, "error: unknown mode %q (use strict or besteffort)\n", *modeName)
 		os.Exit(2)
@@ -57,7 +58,33 @@ func main() {
 	opt.MaxReadBytes = *maxReadBytes
 
 	path := flag.Arg(0)
-	res, err := xdr.DecodeFileOpt(path, opt)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Detect version from magic
+	ver := sm.VersionUnknown
+	if len(data) >= 4 {
+		ver = sm.DetectVersion(binary.LittleEndian.Uint32(data[:4]))
+	}
+	ops := sm.OpcodeTable(ver)
+	if ops == nil {
+		if len(data) >= 4 {
+			fmt.Fprintf(os.Stderr, "warning: unknown magic 0x%08x, falling back to v33\n",
+				binary.LittleEndian.Uint32(data[:4]))
+		} else {
+			fmt.Fprintf(os.Stderr, "warning: file too short for magic, falling back to v33\n")
+		}
+		ops = sm.OpcodeTable(sm.Version33)
+		fmt.Fprintf(os.Stderr, "version: unknown\n")
+	} else {
+		fmt.Fprintf(os.Stderr, "version: SM%d\n", ver)
+	}
+
+	// Decode from already-read bytes
+	res, err := xdr.DecodeOpt(data, opt)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -77,7 +104,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		g := callgraph.Build(res.Value)
+		g := callgraph.Build(res.Value, ops)
 		title := filepath.Base(path)
 		if res.Value.Filename != "" {
 			title = filepath.Base(res.Value.Filename)
@@ -117,7 +144,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		g := callgraph.BuildCFG(res.Value)
+		g := callgraph.BuildCFG(res.Value, ops)
 		title := filepath.Base(path)
 		if res.Value.Filename != "" {
 			title = filepath.Base(res.Value.Filename)
@@ -147,7 +174,7 @@ func main() {
 		return
 	}
 
-	disRes, err := disasm.DisasmTreeOpt(res.Value, opt)
+	disRes, err := disasm.DisasmTreeOpt(res.Value, opt, ops)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

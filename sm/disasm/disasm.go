@@ -4,18 +4,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
-	"github.com/zboralski/spidermonkey-dumper/sm33/bytecode"
+	"github.com/zboralski/spidermonkey-dumper/sm"
+	"github.com/zboralski/spidermonkey-dumper/sm/bytecode"
 )
 
 const commentCol = 60
 
 // DisasmScriptOpt produces disassembly text with mode-aware error handling.
-func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Options) (sm33.Result[string], error) {
+// ops must not be nil.
+func DisasmScriptOpt(s *sm.Script, funcName string, header bool, opt sm.Options, ops *[256]bytecode.OpInfo) (sm.Result[string], error) {
+	if ops == nil {
+		return sm.Result[string]{}, fmt.Errorf("ops table must not be nil")
+	}
 	var b strings.Builder
-	var diags []sm33.Diagnostic
+	var diags []sm.Diagnostic
 	bc := s.Bytecode
-	labels := bytecode.CollectLabels(bc)
+	labels := bytecode.CollectLabels(bc, ops)
 	maxSteps := opt.EffectiveMaxSteps()
 
 	if header {
@@ -29,11 +33,11 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 	for off < len(bc) {
 		steps++
 		if steps > maxSteps {
-			if opt.Mode == sm33.Strict {
-				return sm33.Result[string]{Value: b.String(), Diags: diags},
+			if opt.Mode == sm.Strict {
+				return sm.Result[string]{Value: b.String(), Diags: diags},
 					fmt.Errorf("step limit %d exceeded at offset %d", maxSteps, off)
 			}
-			diags = append(diags, sm33.Diagnostic{
+			diags = append(diags, sm.Diagnostic{
 				Offset: off,
 				Kind:   "overflow",
 				Msg:    fmt.Sprintf("step limit %d reached, truncating", maxSteps),
@@ -48,16 +52,16 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 		}
 
 		op := bc[off]
-		info := &bytecode.Opcodes[op]
+		info := &ops[op]
 		jt := bytecode.JofType(info.Format)
 
 		// Unknown opcode: Name=="" and Length==0
 		if info.Name == "" && info.Length == 0 {
-			if opt.Mode == sm33.Strict {
-				return sm33.Result[string]{Value: b.String(), Diags: diags},
+			if opt.Mode == sm.Strict {
+				return sm.Result[string]{Value: b.String(), Diags: diags},
 					fmt.Errorf("unknown opcode 0x%02x at offset %d", op, off)
 			}
-			diags = append(diags, sm33.Diagnostic{
+			diags = append(diags, sm.Diagnostic{
 				Offset: off,
 				Kind:   "unknown_opcode",
 				Msg:    fmt.Sprintf("unknown opcode 0x%02x", op),
@@ -195,10 +199,20 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 			}
 
 		case bytecode.JOF_LOCAL:
-			if val, ok := bytecode.GetLocalno(bc, off); ok {
-				operand = fmt.Sprintf(" %d", val)
+			// v28: 3-byte instruction uses uint16 operand
+			// v33: 4-byte instruction uses uint24 operand
+			if info.Length == 3 {
+				if val, ok := bytecode.GetUint16(bc, off); ok {
+					operand = fmt.Sprintf(" %d", val)
+				} else {
+					truncated = true
+				}
 			} else {
-				truncated = true
+				if val, ok := bytecode.GetLocalno(bc, off); ok {
+					operand = fmt.Sprintf(" %d", val)
+				} else {
+					truncated = true
+				}
 			}
 
 		case bytecode.JOF_DOUBLE:
@@ -238,12 +252,12 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 		}
 
 		if truncated {
-			if opt.Mode == sm33.Strict {
-				return sm33.Result[string]{Value: b.String(), Diags: diags},
+			if opt.Mode == sm.Strict {
+				return sm.Result[string]{Value: b.String(), Diags: diags},
 					fmt.Errorf("truncated operand at offset %d (opcode 0x%02x)", off, op)
 			}
 			operand = " <truncated>"
-			diags = append(diags, sm33.Diagnostic{
+			diags = append(diags, sm.Diagnostic{
 				Offset: off,
 				Kind:   "truncated",
 				Msg:    fmt.Sprintf("operand truncated for opcode 0x%02x", op),
@@ -267,13 +281,13 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 
 		first = false
 
-		n := bytecode.InstrLen(bc, off)
+		n := bytecode.InstrLen(bc, off, ops)
 		if n <= 0 {
-			if opt.Mode == sm33.Strict {
-				return sm33.Result[string]{Value: b.String(), Diags: diags},
+			if opt.Mode == sm.Strict {
+				return sm.Result[string]{Value: b.String(), Diags: diags},
 					fmt.Errorf("cannot determine instruction length at offset %d (opcode 0x%02x)", off, op)
 			}
-			diags = append(diags, sm33.Diagnostic{
+			diags = append(diags, sm.Diagnostic{
 				Offset: off,
 				Kind:   "invalid",
 				Msg:    fmt.Sprintf("unknown instruction length at offset %d (opcode 0x%02x)", off, op),
@@ -284,11 +298,11 @@ func DisasmScriptOpt(s *sm33.Script, funcName string, header bool, opt sm33.Opti
 		off += n
 	}
 
-	return sm33.Result[string]{Value: b.String(), Diags: diags}, nil
+	return sm.Result[string]{Value: b.String(), Diags: diags}, nil
 }
 
 // tagFunc sets the Func field on diagnostics that don't already have one.
-func tagFunc(diags []sm33.Diagnostic, name string) {
+func tagFunc(diags []sm.Diagnostic, name string) {
 	for i := range diags {
 		if diags[i].Func == "" {
 			diags[i].Func = name
@@ -297,9 +311,9 @@ func tagFunc(diags []sm33.Diagnostic, name string) {
 }
 
 // DisasmTreeOpt produces disassembly for a script and all inner functions with options.
-func DisasmTreeOpt(s *sm33.Script, opt sm33.Options) (sm33.Result[string], error) {
+func DisasmTreeOpt(s *sm.Script, opt sm.Options, ops *[256]bytecode.OpInfo) (sm.Result[string], error) {
 	var b strings.Builder
-	var allDiags []sm33.Diagnostic
+	var allDiags []sm.Diagnostic
 
 	// Source filename header
 	if s.Filename != "" {
@@ -307,30 +321,29 @@ func DisasmTreeOpt(s *sm33.Script, opt sm33.Options) (sm33.Result[string], error
 	}
 
 	// Main script
-	res, err := DisasmScriptOpt(s, "main", true, opt)
+	res, err := DisasmScriptOpt(s, "main", true, opt, ops)
 	b.WriteString(res.Value)
 	tagFunc(res.Diags, "main")
 	allDiags = append(allDiags, res.Diags...)
 	if err != nil {
-		return sm33.Result[string]{Value: b.String(), Diags: allDiags}, err
+		return sm.Result[string]{Value: b.String(), Diags: allDiags}, err
 	}
 	b.WriteByte('\n')
 
 	// Inner functions (from objects)
 	for i, obj := range s.Objects {
-		if obj.Kind == sm33.CkJSFunction && obj.Function != nil && obj.Function.Script != nil {
+		if obj.Kind == sm.CkJSFunction && obj.Function != nil && obj.Function.Script != nil {
 			name := obj.Function.Name
-			diagName := name
 			if name == "" {
-				name = "unknown"
-				diagName = fmt.Sprintf("anon#%d", i)
+				name = fmt.Sprintf("anon#%d", i)
 			}
-			res, err := DisasmScriptOpt(obj.Function.Script, name, false, opt)
+			diagName := name
+			res, err := DisasmScriptOpt(obj.Function.Script, name, false, opt, ops)
 			b.WriteString(res.Value)
 			tagFunc(res.Diags, diagName)
 			allDiags = append(allDiags, res.Diags...)
 			if err != nil {
-				return sm33.Result[string]{Value: b.String(), Diags: allDiags}, err
+				return sm.Result[string]{Value: b.String(), Diags: allDiags}, err
 			}
 			b.WriteByte('\n')
 		}
@@ -338,43 +351,42 @@ func DisasmTreeOpt(s *sm33.Script, opt sm33.Options) (sm33.Result[string], error
 
 	// Recurse into inner function objects
 	for _, obj := range s.Objects {
-		if obj.Kind == sm33.CkJSFunction && obj.Function != nil && obj.Function.Script != nil {
-			res, err := disasmInnerOpt(obj.Function.Script, 1, opt)
+		if obj.Kind == sm.CkJSFunction && obj.Function != nil && obj.Function.Script != nil {
+			res, err := disasmInnerOpt(obj.Function.Script, 1, opt, ops)
 			b.WriteString(res.Value)
 			allDiags = append(allDiags, res.Diags...)
 			if err != nil {
-				return sm33.Result[string]{Value: b.String(), Diags: allDiags}, err
+				return sm.Result[string]{Value: b.String(), Diags: allDiags}, err
 			}
 		}
 	}
 
-	return sm33.Result[string]{Value: b.String(), Diags: allDiags}, nil
+	return sm.Result[string]{Value: b.String(), Diags: allDiags}, nil
 }
 
 // disasmInnerOpt recursively disassembles inner functions with options.
-func disasmInnerOpt(s *sm33.Script, depth int, opt sm33.Options) (sm33.Result[string], error) {
+func disasmInnerOpt(s *sm.Script, depth int, opt sm.Options, ops *[256]bytecode.OpInfo) (sm.Result[string], error) {
 	if depth > 5 {
-		return sm33.Result[string]{}, nil
+		return sm.Result[string]{}, nil
 	}
 	var b strings.Builder
-	var diags []sm33.Diagnostic
+	var diags []sm.Diagnostic
 	for i, obj := range s.Objects {
-		if obj.Kind == sm33.CkJSFunction && obj.Function != nil && obj.Function.Script != nil {
+		if obj.Kind == sm.CkJSFunction && obj.Function != nil && obj.Function.Script != nil {
 			name := obj.Function.Name
-			diagName := name
 			if name == "" {
-				name = "unknown"
-				diagName = fmt.Sprintf("anon#%d", i)
+				name = fmt.Sprintf("anon#%d", i)
 			}
-			res, err := DisasmScriptOpt(obj.Function.Script, name, false, opt)
+			diagName := name
+			res, err := DisasmScriptOpt(obj.Function.Script, name, false, opt, ops)
 			b.WriteString(res.Value)
 			tagFunc(res.Diags, diagName)
 			diags = append(diags, res.Diags...)
 			if err != nil {
-				if opt.Mode == sm33.Strict {
-					return sm33.Result[string]{Value: b.String(), Diags: diags}, err
+				if opt.Mode == sm.Strict {
+					return sm.Result[string]{Value: b.String(), Diags: diags}, err
 				}
-				diags = append(diags, sm33.Diagnostic{
+				diags = append(diags, sm.Diagnostic{
 					Kind: "invalid",
 					Func: diagName,
 					Msg:  fmt.Sprintf("inner function %q: %v", name, err),
@@ -382,14 +394,14 @@ func disasmInnerOpt(s *sm33.Script, depth int, opt sm33.Options) (sm33.Result[st
 				continue
 			}
 			b.WriteByte('\n')
-			inner, err := disasmInnerOpt(obj.Function.Script, depth+1, opt)
+			inner, err := disasmInnerOpt(obj.Function.Script, depth+1, opt, ops)
 			b.WriteString(inner.Value)
 			diags = append(diags, inner.Diags...)
 			if err != nil {
-				if opt.Mode == sm33.Strict {
-					return sm33.Result[string]{Value: b.String(), Diags: diags}, err
+				if opt.Mode == sm.Strict {
+					return sm.Result[string]{Value: b.String(), Diags: diags}, err
 				}
-				diags = append(diags, sm33.Diagnostic{
+				diags = append(diags, sm.Diagnostic{
 					Kind: "invalid",
 					Func: diagName,
 					Msg:  fmt.Sprintf("inner recursion: %v", err),
@@ -397,43 +409,29 @@ func disasmInnerOpt(s *sm33.Script, depth int, opt sm33.Options) (sm33.Result[st
 			}
 		}
 	}
-	return sm33.Result[string]{Value: b.String(), Diags: diags}, nil
-}
-
-// DisasmScript produces disassembly text (Strict mode, errors discarded).
-// Prefer DisasmScriptOpt for error and diagnostic access.
-func DisasmScript(s *sm33.Script, funcName string, header bool) string {
-	r, _ := DisasmScriptOpt(s, funcName, header, sm33.DefaultOptions())
-	return r.Value
-}
-
-// DisasmTree produces disassembly for a script and all its inner functions (Strict mode, errors discarded).
-// Prefer DisasmTreeOpt for error and diagnostic access.
-func DisasmTree(s *sm33.Script) string {
-	r, _ := DisasmTreeOpt(s, sm33.DefaultOptions())
-	return r.Value
+	return sm.Result[string]{Value: b.String(), Diags: diags}, nil
 }
 
 // formatConst formats a decoded constant for display.
-func formatConst(c sm33.Const) string {
+func formatConst(c sm.Const) string {
 	switch c.Kind {
-	case sm33.ConstInt:
+	case sm.ConstInt:
 		return fmt.Sprintf("%d", c.Int)
-	case sm33.ConstDouble:
+	case sm.ConstDouble:
 		return fmt.Sprintf("%g", c.Double)
-	case sm33.ConstAtom:
+	case sm.ConstAtom:
 		return fmt.Sprintf("%q", c.Atom)
-	case sm33.ConstTrue:
+	case sm.ConstTrue:
 		return "true"
-	case sm33.ConstFalse:
+	case sm.ConstFalse:
 		return "false"
-	case sm33.ConstNull:
+	case sm.ConstNull:
 		return "null"
-	case sm33.ConstVoid:
+	case sm.ConstVoid:
 		return "undefined"
-	case sm33.ConstHole:
+	case sm.ConstHole:
 		return "<hole>"
-	case sm33.ConstObject:
+	case sm.ConstObject:
 		return "<object>"
 	default:
 		return fmt.Sprintf("<const?%d>", c.Kind)

@@ -5,89 +5,38 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
-	"github.com/zboralski/spidermonkey-dumper/sm33/bytecode"
+	"github.com/zboralski/lattice"
+	"github.com/zboralski/spidermonkey-dumper/sm"
+	"github.com/zboralski/spidermonkey-dumper/sm/bytecode"
 )
 
-// Control flow opcodes.
-const (
-	opGoto        = 6
-	opIfeq        = 7
-	opIfne        = 8
-	opReturn      = 5
-	opRetrval     = 153
-	opThrow       = 112
-	opOr          = 68
-	opAnd         = 69
-	opGosub       = 116
-	opCase        = 121
-	opDefault     = 122
-	opTableswitch = 70
-)
-
-// Comparison opcodes — emit property access context.
-const (
-	opEq       = 18
-	opNe       = 19
-	opStrictEq = 72
-	opStrictNe = 73
-)
-
-// CallSite records a call found during bytecode scanning.
-type CallSite struct {
-	Offset int
-	Callee string
-	Args   []string
-}
-
-// Successor describes a control flow edge to another basic block.
-type Successor struct {
-	BlockID int
-	Cond    string // "" (unconditional), "T" (true), "F" (false)
-}
-
-// PropAccess records a property read or name lookup that isn't a call target.
-type PropAccess struct {
-	Name string
-}
-
-// BasicBlock is a straight-line sequence of bytecodes.
-type BasicBlock struct {
-	ID    int
-	Start int
-	End   int // exclusive
-	Calls []CallSite
-	Props []PropAccess // property accesses not consumed by calls
-	Succs []Successor
-	Term  bool // ends with return/throw
-}
-
-// FuncCFG is a per-function control flow graph.
-type FuncCFG struct {
-	Name     string
-	Blocks   []*BasicBlock
-	Children []int // indices of child functions in CFGGraph.Funcs
-}
-
-// CFGGraph holds the full program CFG.
-type CFGGraph struct {
-	Funcs []*FuncCFG
+// cfgBuilder holds internal state for CFG construction.
+type cfgBuilder struct {
+	graph *lattice.CFGGraph
+	ops   *[256]bytecode.OpInfo
 }
 
 // BuildCFG constructs a control flow graph from a decoded Script.
-func BuildCFG(s *sm33.Script) *CFGGraph {
-	g := &CFGGraph{}
-	g.walkCFG(s, "main")
-	return g
+// Panics if ops is nil.
+func BuildCFG(s *sm.Script, ops *[256]bytecode.OpInfo) *lattice.CFGGraph {
+	if ops == nil {
+		panic("callgraph.BuildCFG: ops must not be nil")
+	}
+	b := &cfgBuilder{
+		graph: &lattice.CFGGraph{},
+		ops:   ops,
+	}
+	b.walkCFG(s, "main")
+	return b.graph
 }
 
-func (g *CFGGraph) walkCFG(s *sm33.Script, name string) {
-	parentIdx := len(g.Funcs)
-	cfg := buildFuncCFG(s, name)
-	g.Funcs = append(g.Funcs, cfg)
+func (b *cfgBuilder) walkCFG(s *sm.Script, name string) {
+	parentIdx := len(b.graph.Funcs)
+	cfg := buildFuncCFG(s, name, b.ops)
+	b.graph.Funcs = append(b.graph.Funcs, cfg)
 
 	for i, obj := range s.Objects {
-		if obj.Kind != sm33.CkJSFunction || obj.Function == nil {
+		if obj.Kind != sm.CkJSFunction || obj.Function == nil {
 			continue
 		}
 		fn := obj.Function
@@ -95,28 +44,39 @@ func (g *CFGGraph) walkCFG(s *sm33.Script, name string) {
 		if innerName == "" {
 			innerName = fmt.Sprintf("anon#%d", i)
 		}
-		childIdx := len(g.Funcs)
-		g.Funcs[parentIdx].Children = append(g.Funcs[parentIdx].Children, childIdx)
+		childIdx := len(b.graph.Funcs)
+		b.graph.Funcs[parentIdx].Children = append(b.graph.Funcs[parentIdx].Children, childIdx)
 		if fn.Script != nil && !fn.IsLazy {
-			g.walkCFG(fn.Script, innerName)
+			b.walkCFG(fn.Script, innerName)
 		} else {
-			g.Funcs = append(g.Funcs, &FuncCFG{
+			b.graph.Funcs = append(b.graph.Funcs, &lattice.FuncCFG{
 				Name:   innerName,
-				Blocks: []*BasicBlock{{ID: 0}},
+				Blocks: []*lattice.BasicBlock{{ID: 0}},
 			})
 		}
 	}
 }
 
+// isBlockTerminator returns true if the named opcode ends a basic block.
+func isBlockTerminator(name string) bool {
+	switch name {
+	case "goto", "ifeq", "ifne", "or", "and", "case", "default", "gosub",
+		"return", "retrval", "throw", "tableswitch":
+		return true
+	}
+	return false
+}
+
 // buildFuncCFG splits a function's bytecode into basic blocks and annotates calls.
-func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
+// All opcode matching uses the ops table by name for version independence.
+func buildFuncCFG(s *sm.Script, name string, ops *[256]bytecode.OpInfo) *lattice.FuncCFG {
 	bc := s.Bytecode
 	if len(bc) == 0 {
-		return &FuncCFG{Name: name, Blocks: []*BasicBlock{{ID: 0}}}
+		return &lattice.FuncCFG{Name: name, Blocks: []*lattice.BasicBlock{{ID: 0}}}
 	}
 
 	// 1. Collect block boundary offsets
-	labels := bytecode.CollectLabels(bc)
+	labels := bytecode.CollectLabels(bc, ops)
 	blockStarts := map[int]bool{0: true}
 	for label := range labels {
 		if label >= 0 && label < len(bc) {
@@ -128,13 +88,13 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 	off := 0
 	for off < len(bc) {
 		op := bc[off]
-		n := bytecode.InstrLen(bc, off)
+		n := bytecode.InstrLen(bc, off, ops)
 		if n <= 0 {
-			break
+			// Unknown instruction — skip 1 byte and keep discovering blocks
+			off++
+			continue
 		}
-		switch op {
-		case opGoto, opIfeq, opIfne, opOr, opAnd, opCase, opDefault, opGosub,
-			opReturn, opRetrval, opThrow, opTableswitch:
+		if isBlockTerminator(ops[op].Name) {
 			next := off + n
 			if next < len(bc) {
 				blockStarts[next] = true
@@ -151,13 +111,13 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 	sort.Ints(starts)
 
 	offsetToBlock := map[int]int{} // offset → block index
-	blocks := make([]*BasicBlock, len(starts))
+	blocks := make([]*lattice.BasicBlock, len(starts))
 	for i, start := range starts {
 		end := len(bc)
 		if i+1 < len(starts) {
 			end = starts[i+1]
 		}
-		blocks[i] = &BasicBlock{ID: i, Start: start, End: end}
+		blocks[i] = &lattice.BasicBlock{ID: i, Start: start, End: end}
 		offsetToBlock[start] = i
 	}
 
@@ -171,14 +131,18 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 
 		for off < block.End {
 			op := bc[off]
-			n := bytecode.InstrLen(bc, off)
+			n := bytecode.InstrLen(bc, off, ops)
 			if n <= 0 {
+				// Unlike block discovery (which skips 1 byte to find boundaries),
+				// we break here: advancing 1 byte risks misinterpreting mid-instruction
+				// bytes as opcodes, corrupting call/successor analysis for this block.
 				break
 			}
+			opName := ops[op].Name
 
-			switch op {
+			switch opName {
 			// Literal pushes
-			case opString:
+			case "string":
 				if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 					if int(idx) < len(s.Atoms) {
 						lit := s.Atoms[idx]
@@ -188,44 +152,44 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 						litBuf = appendLit(litBuf, "\""+lit+"\"")
 					}
 				}
-			case opDouble:
+			case "double":
 				if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 					if int(idx) < len(s.Consts) {
 						litBuf = appendLit(litBuf, formatConstLit(s.Consts[idx]))
 					}
 				}
-			case opInt8:
+			case "int8":
 				if v, ok := bytecode.GetInt8(bc, off); ok {
 					litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 				}
-			case opInt32:
+			case "int32":
 				if v, ok := bytecode.GetInt32(bc, off); ok {
 					litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 				}
-			case opUint16:
+			case "uint16":
 				if v, ok := bytecode.GetUint16(bc, off); ok {
 					litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 				}
-			case opUint24:
+			case "uint24":
 				if v, ok := bytecode.GetUint24(bc, off); ok {
 					litBuf = appendLit(litBuf, fmt.Sprintf("%d", v))
 				}
-			case opZero:
+			case "zero":
 				litBuf = appendLit(litBuf, "0")
-			case opOne:
+			case "one":
 				litBuf = appendLit(litBuf, "1")
-			case opNull:
+			case "null":
 				litBuf = appendLit(litBuf, "null")
-			case opTrue:
+			case "true":
 				litBuf = appendLit(litBuf, "true")
-			case opFalse:
+			case "false":
 				litBuf = appendLit(litBuf, "false")
 
 			// Calls
-			case opCallprop:
+			case "callprop":
 				if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 					if int(idx) < len(s.Atoms) {
-						block.Calls = append(block.Calls, CallSite{
+						block.Calls = append(block.Calls, lattice.CallSite{
 							Offset: off, Callee: s.Atoms[idx], Args: cloneLits(litBuf),
 						})
 					}
@@ -234,7 +198,9 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 				lastAtom = ""
 				propChain = propChain[:0]
 
-			case opGetprop, opGetgname, opName:
+			case "getprop", "getgname", "name",
+				"callname", "callgname":
+				// v28 uses callname/callgname as combined name+this push opcodes.
 				if idx, ok := bytecode.GetUint32Index(bc, off); ok {
 					if int(idx) < len(s.Atoms) {
 						atom := s.Atoms[idx]
@@ -244,9 +210,9 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 					}
 				}
 
-			case opCall, opNew, opFuncall, opFunapply:
+			case "call", "new", "funcall", "funapply":
 				if lastAtom != "" && off-lastAtomOff < 20 {
-					block.Calls = append(block.Calls, CallSite{
+					block.Calls = append(block.Calls, lattice.CallSite{
 						Offset: off, Callee: lastAtom, Args: cloneLits(litBuf),
 					})
 				}
@@ -255,100 +221,100 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 				propChain = propChain[:0]
 
 			// Comparisons — emit property chain with compared value
-			case opEq, opNe, opStrictEq, opStrictNe:
+			case "eq", "ne", "stricteq", "strictne":
 				if len(propChain) > 0 {
 					chain := strings.Join(propChain, ".")
 					cmpOp := "=="
-					if op == opNe || op == opStrictNe {
+					if opName == "ne" || opName == "strictne" {
 						cmpOp = "!="
 					}
-					if op == opStrictEq || op == opStrictNe {
+					if opName == "stricteq" || opName == "strictne" {
 						cmpOp += "="
 					}
 					label := chain
 					if len(litBuf) > 0 {
 						label += " " + cmpOp + " " + litBuf[len(litBuf)-1]
 					}
-					block.Props = append(block.Props, PropAccess{Name: label})
+					block.Props = append(block.Props, lattice.PropAccess{Name: label})
 					propChain = propChain[:0]
 					litBuf = litBuf[:0]
 				}
 
 			// Successors (control flow)
-			case opGoto:
+			case "goto":
 				if jumpOff, ok := bytecode.GetJumpOffset(bc, off); ok {
 					target := off + int(jumpOff)
 					if bid, ok := offsetToBlock[target]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 					}
 				}
 				block.Term = true
 
-			case opIfeq:
+			case "ifeq":
 				// ifeq: jump if falsy → F branch, fall through → T branch
 				if jumpOff, ok := bytecode.GetJumpOffset(bc, off); ok {
 					target := off + int(jumpOff)
 					fallThrough := off + n
 					if bid, ok := offsetToBlock[fallThrough]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid, Cond: "T"})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid, Cond: "T"})
 					}
 					if bid, ok := offsetToBlock[target]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid, Cond: "F"})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid, Cond: "F"})
 					}
 				}
 				block.Term = true
 
-			case opIfne:
+			case "ifne":
 				// ifne: jump if truthy → T branch, fall through → F branch
 				if jumpOff, ok := bytecode.GetJumpOffset(bc, off); ok {
 					target := off + int(jumpOff)
 					fallThrough := off + n
 					if bid, ok := offsetToBlock[fallThrough]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid, Cond: "F"})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid, Cond: "F"})
 					}
 					if bid, ok := offsetToBlock[target]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid, Cond: "T"})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid, Cond: "T"})
 					}
 				}
 				block.Term = true
 
-			case opOr, opAnd:
+			case "or", "and":
 				// Short-circuit: jump or fall through
 				if jumpOff, ok := bytecode.GetJumpOffset(bc, off); ok {
 					target := off + int(jumpOff)
 					fallThrough := off + n
 					if bid, ok := offsetToBlock[fallThrough]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 					}
 					if bid, ok := offsetToBlock[target]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 					}
 				}
 				block.Term = true
 
-			case opCase:
+			case "case":
 				if jumpOff, ok := bytecode.GetJumpOffset(bc, off); ok {
 					target := off + int(jumpOff)
 					fallThrough := off + n
 					if bid, ok := offsetToBlock[fallThrough]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 					}
 					if bid, ok := offsetToBlock[target]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 					}
 				}
 				block.Term = true
 
-			case opDefault, opGosub:
+			case "default", "gosub":
 				if jumpOff, ok := bytecode.GetJumpOffset(bc, off); ok {
 					target := off + int(jumpOff)
 					if bid, ok := offsetToBlock[target]; ok {
-						block.Succs = append(block.Succs, Successor{BlockID: bid})
+						block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 					}
 				}
 				block.Term = true
 
-			case opReturn, opRetrval, opThrow:
+			case "return", "retrval", "throw":
 				block.Term = true
 			}
 
@@ -357,19 +323,16 @@ func buildFuncCFG(s *sm33.Script, name string) *FuncCFG {
 
 		// Flush remaining property chain (not consumed by call or comparison)
 		if len(propChain) > 0 {
-			block.Props = append(block.Props, PropAccess{Name: strings.Join(propChain, ".")})
+			block.Props = append(block.Props, lattice.PropAccess{Name: strings.Join(propChain, ".")})
 		}
 
 		// Non-terminal blocks fall through to next block
 		if !block.Term {
 			if bid, ok := offsetToBlock[block.End]; ok {
-				block.Succs = append(block.Succs, Successor{BlockID: bid})
+				block.Succs = append(block.Succs, lattice.Successor{BlockID: bid})
 			}
 		}
-		// Handle goto/jump that set Term but are really just unconditional jumps
-		// — already handled above in the switch cases
-
 	}
 
-	return &FuncCFG{Name: name, Blocks: blocks}
+	return &lattice.FuncCFG{Name: name, Blocks: blocks}
 }

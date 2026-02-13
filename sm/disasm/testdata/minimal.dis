@@ -12,7 +12,7 @@ main
 00013  setrval                                              
 00014  retrval                                              
 
-unknown
+anon#0
 00000  name         "ccs"                                   
 00005  newinit      1                                       
 0000A  newinit      1                                       
@@ -158,7 +158,7 @@ unknown
 00236  pop                                                  
 00237  retrval                                              
 
-unknown
+anon#1
 00000  name         "ccs"                                   
 00005  newinit      1                                       
 0000A  null                                                 

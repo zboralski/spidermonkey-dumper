@@ -1,0 +1,7 @@
+; locals.js
+loc     op
+-----   --
+main
+00000  getlocal     0                                       
+00003  return                                               
+

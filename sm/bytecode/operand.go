@@ -1,6 +1,6 @@
 package bytecode
 
-// Bytecode operand readers (big-endian, matching SM33 encoding).
+// Bytecode operand readers (big-endian, matching SM28/SM33 encoding).
 // All return (value, ok) where ok=false means truncated input.
 
 func GetUint16(bc []byte, off int) (uint16, bool) {
@@ -56,13 +56,13 @@ func GetLocalno(bc []byte, off int) (uint32, bool) {
 }
 
 // InstrLen returns the byte length of the instruction at bc[off].
-// Returns -1 for unknown/invalid opcodes.
-func InstrLen(bc []byte, off int) int {
-	if off >= len(bc) {
+// Returns -1 for unknown/invalid opcodes or nil ops.
+func InstrLen(bc []byte, off int, ops *[256]OpInfo) int {
+	if ops == nil || off >= len(bc) {
 		return -1
 	}
 	op := bc[off]
-	info := &Opcodes[op]
+	info := &ops[op]
 	if info.Length > 0 {
 		return int(info.Length)
 	}
@@ -87,12 +87,16 @@ func InstrLen(bc []byte, off int) int {
 }
 
 // CollectLabels identifies bytecode offsets that are jump targets.
-func CollectLabels(bc []byte) map[int]struct{} {
+// Returns empty map if ops is nil.
+func CollectLabels(bc []byte, ops *[256]OpInfo) map[int]struct{} {
 	labels := make(map[int]struct{})
+	if ops == nil {
+		return labels
+	}
 	off := 0
 	for off < len(bc) {
 		op := bc[off]
-		info := &Opcodes[op]
+		info := &ops[op]
 		jt := JofType(info.Format)
 
 		if jt == JOF_JUMP {
@@ -131,7 +135,7 @@ func CollectLabels(bc []byte) map[int]struct{} {
 			}
 		}
 
-		n := InstrLen(bc, off)
+		n := InstrLen(bc, off, ops)
 		if n <= 0 {
 			break
 		}

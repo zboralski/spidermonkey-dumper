@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
+	"github.com/zboralski/spidermonkey-dumper/sm"
 )
 
 func TestBadMagic(t *testing.T) {
@@ -26,7 +26,7 @@ func TestEmptyInput(t *testing.T) {
 }
 
 func TestNegativeBytes(t *testing.T) {
-	r := newReader([]byte{1, 2, 3}, sm33.Strict, sm33.MaxReadBytes)
+	r := newReader([]byte{1, 2, 3}, sm.Strict, sm.MaxReadBytes)
 	_, err := r.bytes(-1)
 	if err == nil {
 		t.Fatal("expected error for negative byte count")
@@ -34,7 +34,7 @@ func TestNegativeBytes(t *testing.T) {
 }
 
 func TestNegativeBytesBestEffort(t *testing.T) {
-	r := newReader([]byte{1, 2, 3}, sm33.BestEffort, sm33.MaxReadBytes)
+	r := newReader([]byte{1, 2, 3}, sm.BestEffort, sm.MaxReadBytes)
 	b, err := r.bytes(-1)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
@@ -51,16 +51,16 @@ func TestNegativeBytesBestEffort(t *testing.T) {
 }
 
 func TestHugeBytesStrict(t *testing.T) {
-	r := newReader(make([]byte, 100), sm33.Strict, sm33.MaxReadBytes)
-	_, err := r.bytes(sm33.MaxReadBytes + 1)
+	r := newReader(make([]byte, 100), sm.Strict, sm.MaxReadBytes)
+	_, err := r.bytes(sm.MaxReadBytes + 1)
 	if err == nil {
 		t.Fatal("Strict should error on bytes exceeding MaxReadBytes")
 	}
 }
 
 func TestHugeBytesBestEffort(t *testing.T) {
-	r := newReader(make([]byte, 100), sm33.BestEffort, sm33.MaxReadBytes)
-	b, err := r.bytes(sm33.MaxReadBytes + 1)
+	r := newReader(make([]byte, 100), sm.BestEffort, sm.MaxReadBytes)
+	b, err := r.bytes(sm.MaxReadBytes + 1)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestHugeBytesBestEffort(t *testing.T) {
 
 func TestStrictBadMagic(t *testing.T) {
 	data := []byte{0x00, 0x00, 0x00, 0x00}
-	_, err := DecodeOpt(data, sm33.DefaultOptions())
+	_, err := DecodeOpt(data, sm.DefaultOptions())
 	if err == nil {
 		t.Fatal("Strict mode should error on bad magic")
 	}
@@ -89,7 +89,7 @@ func TestStrictBadMagic(t *testing.T) {
 
 func TestBestEffortBadMagic(t *testing.T) {
 	data := []byte{0x00, 0x00, 0x00, 0x00}
-	res, err := DecodeOpt(data, sm33.Options{Mode: sm33.BestEffort})
+	res, err := DecodeOpt(data, sm.Options{Mode: sm.BestEffort})
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -110,11 +110,11 @@ func TestBestEffortBadMagic(t *testing.T) {
 func TestBestEffortTruncatedStream(t *testing.T) {
 	// Valid magic + truncated script header
 	data := make([]byte, 6)
-	binary.LittleEndian.PutUint32(data, XdrMagic)
+	binary.LittleEndian.PutUint32(data, XdrMagicV33)
 	data[4] = 0x01
 	data[5] = 0x00
 
-	res, err := DecodeOpt(data, sm33.Options{Mode: sm33.BestEffort})
+	res, err := DecodeOpt(data, sm.Options{Mode: sm.BestEffort})
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -126,14 +126,14 @@ func TestBestEffortTruncatedStream(t *testing.T) {
 
 func makeHugeCountInput(natoms uint32) []byte {
 	data := make([]byte, 62)
-	binary.LittleEndian.PutUint32(data[0:], XdrMagic)
+	binary.LittleEndian.PutUint32(data[0:], XdrMagicV33)
 	binary.LittleEndian.PutUint32(data[22:], natoms)
 	return data
 }
 
 func TestHugeCountStrict(t *testing.T) {
 	data := makeHugeCountInput(0xFFFFFFFF)
-	_, err := DecodeOpt(data, sm33.DefaultOptions())
+	_, err := DecodeOpt(data, sm.DefaultOptions())
 	if err == nil {
 		t.Fatal("Strict should error on huge natoms")
 	}
@@ -141,7 +141,7 @@ func TestHugeCountStrict(t *testing.T) {
 
 func TestHugeCountBestEffort(t *testing.T) {
 	data := makeHugeCountInput(0xFFFFFFFF)
-	res, err := DecodeOpt(data, sm33.Options{Mode: sm33.BestEffort})
+	res, err := DecodeOpt(data, sm.Options{Mode: sm.BestEffort})
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -157,7 +157,7 @@ func TestHugeCountBestEffort(t *testing.T) {
 }
 
 func FuzzDecode(f *testing.F) {
-	// Seed with real .jsc files
+	// Seed with real .jsc files from disasm testdata (v28 and v33)
 	files, err := filepath.Glob("../disasm/testdata/*.jsc")
 	if err != nil {
 		f.Fatal(err)
@@ -169,12 +169,24 @@ func FuzzDecode(f *testing.F) {
 		}
 		f.Add(data)
 	}
+	// Seed with v28 .jsc files from xdr testdata
+	v28files, err := filepath.Glob("testdata/*.jsc")
+	if err != nil {
+		f.Fatal(err)
+	}
+	for _, path := range v28files {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+	}
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		// Strict mode: must not panic
-		DecodeOpt(data, sm33.DefaultOptions())
+		DecodeOpt(data, sm.DefaultOptions())
 
 		// BestEffort mode: must not panic
-		DecodeOpt(data, sm33.Options{Mode: sm33.BestEffort})
+		DecodeOpt(data, sm.Options{Mode: sm.BestEffort})
 	})
 }

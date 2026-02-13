@@ -8,10 +8,13 @@ import (
 	"os"
 	"unicode/utf16"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
+	"github.com/zboralski/spidermonkey-dumper/sm"
 )
 
-const XdrMagic = 0xb973c02c // 0xb973c0de - 178
+const (
+	XdrMagicV28 = 0xb973c042 // 0xb973c0de - 156
+	XdrMagicV33 = 0xb973c02c // 0xb973c0de - 178
+)
 
 // ScriptBits flags (bit positions).
 const (
@@ -55,15 +58,16 @@ const (
 type reader struct {
 	data         []byte
 	pos          int
-	mode         sm33.Mode
+	mode         sm.Mode
 	maxReadBytes int
-	diags        []sm33.Diagnostic
+	diags        []sm.Diagnostic
 	depth        int
+	ver          sm.Version
 }
 
-func newReader(data []byte, mode sm33.Mode, maxReadBytes int) *reader {
+func newReader(data []byte, mode sm.Mode, maxReadBytes int) *reader {
 	if maxReadBytes <= 0 {
-		maxReadBytes = sm33.MaxReadBytes
+		maxReadBytes = sm.MaxReadBytes
 	}
 	return &reader{data: data, mode: mode, maxReadBytes: maxReadBytes}
 }
@@ -73,8 +77,8 @@ func (r *reader) remaining() int {
 }
 
 func (r *reader) truncated(n int, what string) error {
-	if r.mode == sm33.BestEffort {
-		r.diags = append(r.diags, sm33.Diagnostic{
+	if r.mode == sm.BestEffort {
+		r.diags = append(r.diags, sm.Diagnostic{
 			Offset: r.pos,
 			Kind:   "truncated",
 			Msg:    fmt.Sprintf("%s: need %d bytes, have %d", what, n, r.remaining()),
@@ -114,8 +118,8 @@ func (r *reader) u32() (uint32, error) {
 
 func (r *reader) bytes(n int) ([]byte, error) {
 	if n < 0 {
-		if r.mode == sm33.BestEffort {
-			r.diags = append(r.diags, sm33.Diagnostic{
+		if r.mode == sm.BestEffort {
+			r.diags = append(r.diags, sm.Diagnostic{
 				Offset: r.pos,
 				Kind:   "invalid",
 				Msg:    fmt.Sprintf("bytes: negative count %d", n),
@@ -126,8 +130,8 @@ func (r *reader) bytes(n int) ([]byte, error) {
 		return nil, fmt.Errorf("bytes: negative count %d at offset %d: %w", n, r.pos, io.ErrUnexpectedEOF)
 	}
 	if n > r.maxReadBytes {
-		if r.mode == sm33.BestEffort {
-			r.diags = append(r.diags, sm33.Diagnostic{
+		if r.mode == sm.BestEffort {
+			r.diags = append(r.diags, sm.Diagnostic{
 				Offset: r.pos,
 				Kind:   "clamped",
 				Msg: fmt.Sprintf("bytes(%d): clamped to %d (increase max read cap if this is expected)",
@@ -140,11 +144,11 @@ func (r *reader) bytes(n int) ([]byte, error) {
 		}
 	}
 	if r.pos+n > len(r.data) {
-		if r.mode == sm33.BestEffort {
+		if r.mode == sm.BestEffort {
 			avail := r.remaining()
 			b := make([]byte, avail)
 			copy(b, r.data[r.pos:r.pos+avail])
-			r.diags = append(r.diags, sm33.Diagnostic{
+			r.diags = append(r.diags, sm.Diagnostic{
 				Offset: r.pos,
 				Kind:   "truncated",
 				Msg:    fmt.Sprintf("bytes(%d): have %d", n, avail),
@@ -170,9 +174,9 @@ func (r *reader) cstring() (string, error) {
 		}
 		r.pos++
 	}
-	if r.mode == sm33.BestEffort {
+	if r.mode == sm.BestEffort {
 		s := string(r.data[start:r.pos])
-		r.diags = append(r.diags, sm33.Diagnostic{
+		r.diags = append(r.diags, sm.Diagnostic{
 			Offset: start,
 			Kind:   "truncated",
 			Msg:    "unterminated cstring",
@@ -182,8 +186,18 @@ func (r *reader) cstring() (string, error) {
 	return "", fmt.Errorf("unterminated cstring at offset %d: %w", start, io.ErrUnexpectedEOF)
 }
 
-// readAtom reads an XDR atom: uint32(length<<1|isLatin1) + chars.
+// readAtom reads an XDR atom, dispatching by version.
+// v33: uint32(length<<1|isLatin1) + chars (Latin1 or UTF-16).
+// v28: uint32(length) + length*2 bytes UTF-16 (no Latin1 flag).
 func (r *reader) readAtom() (string, error) {
+	if r.ver == sm.Version28 {
+		return r.readAtomV28()
+	}
+	return r.readAtomV33()
+}
+
+// readAtomV33 reads a v33 atom: uint32(length<<1|isLatin1) + chars.
+func (r *reader) readAtomV33() (string, error) {
 	val, err := r.u32()
 	if err != nil {
 		return "", fmt.Errorf("atom header: %w", err)
@@ -198,12 +212,24 @@ func (r *reader) readAtom() (string, error) {
 		}
 		return string(b), nil
 	}
-	// UTF-16: 2 bytes per char (little-endian), decode surrogate pairs
+	return r.readUTF16(length)
+}
+
+// readAtomV28 reads a v28 atom: uint32(length) + length*2 bytes UTF-16.
+func (r *reader) readAtomV28() (string, error) {
+	length, err := r.u32()
+	if err != nil {
+		return "", fmt.Errorf("atom header: %w", err)
+	}
+	return r.readUTF16(length)
+}
+
+// readUTF16 reads length UTF-16 code units (2 bytes each, little-endian).
+func (r *reader) readUTF16(length uint32) (string, error) {
 	raw, err := r.bytes(int(length) * 2)
 	if err != nil {
 		return "", fmt.Errorf("atom utf16 data: %w", err)
 	}
-	// Use actual bytes returned (may be shorter in BestEffort mode)
 	nchars := len(raw) / 2
 	u16s := make([]uint16, nchars)
 	for i := 0; i < nchars; i++ {
@@ -221,15 +247,15 @@ func (r *reader) clampCount(count uint32, minEntryBytes int, what string) (uint3
 	}
 	maxByBytes := uint32(r.remaining() / minEntryBytes)
 	cap := maxByBytes
-	if cap > sm33.MaxAllocCount {
-		cap = sm33.MaxAllocCount
+	if cap > sm.MaxAllocCount {
+		cap = sm.MaxAllocCount
 	}
 	if count > cap {
-		if r.mode == sm33.Strict {
+		if r.mode == sm.Strict {
 			return 0, fmt.Errorf("%s count %d exceeds limit (max by remaining: %d, abs cap: %d)",
-				what, count, maxByBytes, sm33.MaxAllocCount)
+				what, count, maxByBytes, sm.MaxAllocCount)
 		}
-		r.diags = append(r.diags, sm33.Diagnostic{
+		r.diags = append(r.diags, sm.Diagnostic{
 			Offset: r.pos,
 			Kind:   "clamped",
 			Msg:    fmt.Sprintf("%s count %d clamped to %d", what, count, cap),
@@ -242,14 +268,14 @@ func (r *reader) clampCount(count uint32, minEntryBytes int, what string) (uint3
 // checkDepth validates recursion depth. In Strict mode, returns error.
 // In BestEffort, records diagnostic and returns exceeded=true with nil error.
 func (r *reader) checkDepth(what string) (exceeded bool, err error) {
-	if r.depth > sm33.MaxDecodeDepth {
-		if r.mode == sm33.Strict {
-			return true, fmt.Errorf("%s: recursion depth %d exceeds limit %d", what, r.depth, sm33.MaxDecodeDepth)
+	if r.depth > sm.MaxDecodeDepth {
+		if r.mode == sm.Strict {
+			return true, fmt.Errorf("%s: recursion depth %d exceeds limit %d", what, r.depth, sm.MaxDecodeDepth)
 		}
-		r.diags = append(r.diags, sm33.Diagnostic{
+		r.diags = append(r.diags, sm.Diagnostic{
 			Offset: r.pos,
 			Kind:   "overflow",
-			Msg:    fmt.Sprintf("%s: recursion depth %d exceeded limit %d", what, r.depth, sm33.MaxDecodeDepth),
+			Msg:    fmt.Sprintf("%s: recursion depth %d exceeded limit %d", what, r.depth, sm.MaxDecodeDepth),
 		})
 		return true, nil
 	}
@@ -257,67 +283,84 @@ func (r *reader) checkDepth(what string) (exceeded bool, err error) {
 }
 
 // DecodeFileOpt reads a .jsc file and decodes with options.
-func DecodeFileOpt(path string, opt sm33.Options) (sm33.Result[*sm33.Script], error) {
+func DecodeFileOpt(path string, opt sm.Options) (sm.Result[*sm.Script], error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return sm33.Result[*sm33.Script]{}, err
+		return sm.Result[*sm.Script]{}, err
 	}
 	return DecodeOpt(data, opt)
 }
 
 // DecodeOpt parses XDR-encoded bytecode with options.
-func DecodeOpt(data []byte, opt sm33.Options) (sm33.Result[*sm33.Script], error) {
+func DecodeOpt(data []byte, opt sm.Options) (sm.Result[*sm.Script], error) {
 	r := newReader(data, opt.Mode, opt.EffectiveMaxReadBytes())
 
 	magic, err := r.u32()
 	if err != nil {
-		return sm33.Result[*sm33.Script]{Diags: r.diags}, fmt.Errorf("reading magic: %w", err)
-	}
-	if magic != XdrMagic {
-		if opt.Mode == sm33.Strict {
-			return sm33.Result[*sm33.Script]{Diags: r.diags}, fmt.Errorf("bad XDR magic: got 0x%08x, want 0x%08x", magic, XdrMagic)
-		}
-		r.diags = append(r.diags, sm33.Diagnostic{
-			Offset: 0,
-			Kind:   "invalid",
-			Msg:    fmt.Sprintf("bad XDR magic: got 0x%08x, want 0x%08x", magic, XdrMagic),
-		})
+		return sm.Result[*sm.Script]{Diags: r.diags}, fmt.Errorf("reading magic: %w", err)
 	}
 
-	s, err := decodeScript(r)
-	if err != nil {
-		return sm33.Result[*sm33.Script]{Diags: r.diags}, err
+	ver := sm.DetectVersion(magic)
+	r.ver = ver
+	var s *sm.Script
+	switch ver {
+	case sm.Version28:
+		s, err = decodeScriptV28(r)
+	case sm.Version33:
+		s, err = decodeScriptV33(r)
+	default:
+		if opt.Mode == sm.Strict {
+			return sm.Result[*sm.Script]{Diags: r.diags},
+				fmt.Errorf("unknown XDR magic: 0x%08x (expected v28=0x%08x or v33=0x%08x)", magic, XdrMagicV28, XdrMagicV33)
+		}
+		r.diags = append(r.diags, sm.Diagnostic{
+			Offset: 0,
+			Kind:   "invalid",
+			Msg:    fmt.Sprintf("unknown XDR magic: 0x%08x, trying v33 decoder", magic),
+		})
+		s, err = decodeScriptV33(r)
 	}
-	return sm33.Result[*sm33.Script]{Value: s, Diags: r.diags}, nil
+	if err != nil {
+		return sm.Result[*sm.Script]{Diags: r.diags}, err
+	}
+	return sm.Result[*sm.Script]{Value: s, Diags: r.diags}, nil
 }
 
 // DecodeFile reads a .jsc file and decodes the top-level script (Strict mode).
-func DecodeFile(path string) (*sm33.Script, error) {
-	res, err := DecodeFileOpt(path, sm33.DefaultOptions())
+func DecodeFile(path string) (*sm.Script, error) {
+	res, err := DecodeFileOpt(path, sm.DefaultOptions())
 	return res.Value, err
 }
 
 // Decode parses XDR-encoded bytecode into a Script (Strict mode).
-func Decode(data []byte) (*sm33.Script, error) {
-	res, err := DecodeOpt(data, sm33.DefaultOptions())
+func Decode(data []byte) (*sm.Script, error) {
+	res, err := DecodeOpt(data, sm.DefaultOptions())
 	return res.Value, err
 }
 
-// decodeScript reads XDRScript fields.
-func decodeScript(r *reader) (*sm33.Script, error) {
+// decodeScriptVersioned dispatches to the version-specific script decoder.
+func decodeScriptVersioned(r *reader) (*sm.Script, error) {
+	if r.ver == sm.Version28 {
+		return decodeScriptV28(r)
+	}
+	return decodeScriptV33(r)
+}
+
+// decodeScriptV33 reads XDRScript fields for SpiderMonkey 33.
+func decodeScriptV33(r *reader) (*sm.Script, error) {
 	r.depth++
-	exceeded, err := r.checkDepth("decodeScript")
+	exceeded, err := r.checkDepth("decodeScriptV33")
 	if err != nil {
 		r.depth--
 		return nil, err
 	}
 	if exceeded {
 		r.depth--
-		return &sm33.Script{}, nil
+		return &sm.Script{}, nil
 	}
 	defer func() { r.depth-- }()
 
-	s := &sm33.Script{}
+	s := &sm.Script{}
 
 	s.Nargs, err = r.u16()
 	if err != nil {
@@ -472,7 +515,7 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 		return nil, err
 	}
 	if nconsts > 0 {
-		s.Consts = make([]sm33.Const, nconsts)
+		s.Consts = make([]sm.Const, nconsts)
 		for i := uint32(0); i < nconsts; i++ {
 			s.Consts[i], err = decodeConst(r)
 			if err != nil {
@@ -486,7 +529,7 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.Objects = make([]*sm33.Object, nobjects)
+	s.Objects = make([]*sm.Object, nobjects)
 	for i := uint32(0); i < nobjects; i++ {
 		s.Objects[i], err = decodeObject(r)
 		if err != nil {
@@ -500,7 +543,7 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 		return nil, err
 	}
 	if nregexps > 0 {
-		s.Regexps = make([]sm33.Regexp, nregexps)
+		s.Regexps = make([]sm.Regexp, nregexps)
 		for i := uint32(0); i < nregexps; i++ {
 			s.Regexps[i], err = decodeRegexp(r)
 			if err != nil {
@@ -515,7 +558,7 @@ func decodeScript(r *reader) (*sm33.Script, error) {
 		return nil, err
 	}
 	if ntrynotes > 0 {
-		s.TryNotes = make([]sm33.TryNote, ntrynotes)
+		s.TryNotes = make([]sm.TryNote, ntrynotes)
 		for i := int(ntrynotes) - 1; i >= 0; i-- {
 			tn := &s.TryNotes[i]
 			tn.Kind, err = r.u8()
@@ -647,26 +690,26 @@ func decodeScriptSource(r *reader) (string, error) {
 }
 
 // decodeObject reads one XDR object entry.
-func decodeObject(r *reader) (*sm33.Object, error) {
+func decodeObject(r *reader) (*sm.Object, error) {
 	classKind, err := r.u32()
 	if err != nil {
 		return nil, err
 	}
-	obj := &sm33.Object{Kind: classKind}
+	obj := &sm.Object{Kind: classKind}
 
 	switch classKind {
-	case sm33.CkBlockObject, sm33.CkWithObject:
+	case sm.CkBlockObject, sm.CkWithObject:
 		// enclosingStaticScopeIndex
 		if _, err = r.u32(); err != nil {
 			return nil, err
 		}
-		if classKind == sm33.CkBlockObject {
+		if classKind == sm.CkBlockObject {
 			if err = skipStaticBlockObject(r); err != nil {
 				return nil, err
 			}
 		}
 
-	case sm33.CkJSFunction:
+	case sm.CkJSFunction:
 		// funEnclosingScopeIndex
 		if _, err = r.u32(); err != nil {
 			return nil, err
@@ -676,14 +719,14 @@ func decodeObject(r *reader) (*sm33.Object, error) {
 			return nil, err
 		}
 
-	case sm33.CkJSObject:
+	case sm.CkJSObject:
 		if err = skipObjectLiteral(r); err != nil {
 			return nil, err
 		}
 
 	default:
-		if r.mode == sm33.BestEffort {
-			r.diags = append(r.diags, sm33.Diagnostic{
+		if r.mode == sm.BestEffort {
+			r.diags = append(r.diags, sm.Diagnostic{
 				Offset: r.pos,
 				Kind:   "invalid",
 				Msg:    fmt.Sprintf("unknown class kind %d", classKind),
@@ -697,7 +740,7 @@ func decodeObject(r *reader) (*sm33.Object, error) {
 }
 
 // decodeInterpretedFunction reads XDRInterpretedFunction.
-func decodeInterpretedFunction(r *reader) (*sm33.Function, error) {
+func decodeInterpretedFunction(r *reader) (*sm.Function, error) {
 	r.depth++
 	exceeded, err := r.checkDepth("decodeInterpretedFunction")
 	if err != nil {
@@ -706,7 +749,7 @@ func decodeInterpretedFunction(r *reader) (*sm33.Function, error) {
 	}
 	if exceeded {
 		r.depth--
-		return &sm33.Function{Name: "<depth-exceeded>", IsLazy: true}, nil
+		return &sm.Function{Name: "<depth-exceeded>", IsLazy: true}, nil
 	}
 	defer func() { r.depth-- }()
 
@@ -715,7 +758,7 @@ func decodeInterpretedFunction(r *reader) (*sm33.Function, error) {
 		return nil, err
 	}
 
-	f := &sm33.Function{}
+	f := &sm.Function{}
 
 	hasAtom := firstword&0x1 != 0
 	isLazy := firstword&0x4 != 0
@@ -740,7 +783,7 @@ func decodeInterpretedFunction(r *reader) (*sm33.Function, error) {
 			return nil, fmt.Errorf("lazy script: %w", err)
 		}
 	} else {
-		f.Script, err = decodeScript(r)
+		f.Script, err = decodeScriptVersioned(r)
 		if err != nil {
 			return nil, fmt.Errorf("function script: %w", err)
 		}
@@ -750,60 +793,60 @@ func decodeInterpretedFunction(r *reader) (*sm33.Function, error) {
 }
 
 // decodeConst reads one XDRScriptConst.
-func decodeConst(r *reader) (sm33.Const, error) {
+func decodeConst(r *reader) (sm.Const, error) {
 	tag, err := r.u32()
 	if err != nil {
-		return sm33.Const{}, err
+		return sm.Const{}, err
 	}
 	switch tag {
 	case scriptInt:
 		v, err := r.u32()
 		if err != nil {
-			return sm33.Const{}, err
+			return sm.Const{}, err
 		}
-		return sm33.Const{Kind: sm33.ConstInt, Int: int32(v)}, nil
+		return sm.Const{Kind: sm.ConstInt, Int: int32(v)}, nil
 	case scriptDouble:
 		b, err := r.bytes(8)
 		if err != nil {
-			return sm33.Const{}, err
+			return sm.Const{}, err
 		}
 		if len(b) < 8 {
 			// BestEffort: bytes() returned short slice, already recorded truncation diagnostic
-			return sm33.Const{Kind: sm33.ConstDouble}, nil
+			return sm.Const{Kind: sm.ConstDouble}, nil
 		}
 		bits := binary.LittleEndian.Uint64(b)
-		return sm33.Const{Kind: sm33.ConstDouble, Double: math.Float64frombits(bits)}, nil
+		return sm.Const{Kind: sm.ConstDouble, Double: math.Float64frombits(bits)}, nil
 	case scriptAtom:
 		s, err := r.readAtom()
 		if err != nil {
-			return sm33.Const{}, err
+			return sm.Const{}, err
 		}
-		return sm33.Const{Kind: sm33.ConstAtom, Atom: s}, nil
+		return sm.Const{Kind: sm.ConstAtom, Atom: s}, nil
 	case scriptTrue:
-		return sm33.Const{Kind: sm33.ConstTrue}, nil
+		return sm.Const{Kind: sm.ConstTrue}, nil
 	case scriptFalse:
-		return sm33.Const{Kind: sm33.ConstFalse}, nil
+		return sm.Const{Kind: sm.ConstFalse}, nil
 	case scriptNull:
-		return sm33.Const{Kind: sm33.ConstNull}, nil
+		return sm.Const{Kind: sm.ConstNull}, nil
 	case scriptVoid:
-		return sm33.Const{Kind: sm33.ConstVoid}, nil
+		return sm.Const{Kind: sm.ConstVoid}, nil
 	case scriptHole:
-		return sm33.Const{Kind: sm33.ConstHole}, nil
+		return sm.Const{Kind: sm.ConstHole}, nil
 	case scriptObject:
 		if err = skipObjectLiteral(r); err != nil {
-			return sm33.Const{}, err
+			return sm.Const{}, err
 		}
-		return sm33.Const{Kind: sm33.ConstObject}, nil
+		return sm.Const{Kind: sm.ConstObject}, nil
 	default:
-		if r.mode == sm33.BestEffort {
-			r.diags = append(r.diags, sm33.Diagnostic{
+		if r.mode == sm.BestEffort {
+			r.diags = append(r.diags, sm.Diagnostic{
 				Offset: r.pos,
 				Kind:   "invalid",
 				Msg:    fmt.Sprintf("unknown const tag %d", tag),
 			})
-			return sm33.Const{}, nil
+			return sm.Const{}, nil
 		}
-		return sm33.Const{}, fmt.Errorf("unknown const tag %d", tag)
+		return sm.Const{}, fmt.Errorf("unknown const tag %d", tag)
 	}
 }
 
@@ -814,16 +857,16 @@ func skipConst(r *reader) error {
 }
 
 // decodeRegexp reads one XDRScriptRegExpObject.
-func decodeRegexp(r *reader) (sm33.Regexp, error) {
+func decodeRegexp(r *reader) (sm.Regexp, error) {
 	source, err := r.readAtom()
 	if err != nil {
-		return sm33.Regexp{}, err
+		return sm.Regexp{}, err
 	}
 	flags, err := r.u32()
 	if err != nil {
-		return sm33.Regexp{}, err
+		return sm.Regexp{}, err
 	}
-	return sm33.Regexp{Source: source, Flags: flags}, nil
+	return sm.Regexp{Source: source, Flags: flags}, nil
 }
 
 // skipStaticBlockObject reads and discards a StaticBlockObject.
@@ -920,6 +963,10 @@ func skipObjectLiteral(r *reader) error {
 }
 
 // readPackedFields reads a LazyScript uint64 packedFields and extracts counts.
+// NOTE: assumes the bit layout of packedFields_ is identical in v28 and v33.
+// Both versions store numFreeVariables at bits 8..31 of the low word and
+// numInnerFunctions at bits 0..22 of the high word. If a future version
+// shifts these fields, this function needs a version-specific path.
 func readPackedFields(r *reader) (numFreeVars, numInnerFuncs uint32, err error) {
 	lo, err := r.u32()
 	if err != nil {

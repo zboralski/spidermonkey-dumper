@@ -1,0 +1,6 @@
+; test.js
+loc     op
+-----   --
+main
+00000  name         "hello"                                 
+

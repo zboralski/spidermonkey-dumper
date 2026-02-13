@@ -1,14 +1,18 @@
 package disasm
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/zboralski/spidermonkey-dumper/sm33"
-	"github.com/zboralski/spidermonkey-dumper/sm33/xdr"
+	"github.com/zboralski/spidermonkey-dumper/sm"
+	"github.com/zboralski/spidermonkey-dumper/sm/bytecode"
+	"github.com/zboralski/spidermonkey-dumper/sm/xdr"
 )
+
+var v33ops = &bytecode.OpcodeTableV33
 
 func TestGoldenFiles(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.jsc")
@@ -29,12 +33,36 @@ func TestGoldenFiles(t *testing.T) {
 				t.Fatalf("read golden: %v", err)
 			}
 
-			script, err := xdr.DecodeFile(jscPath)
+			data, err := os.ReadFile(jscPath)
+			if err != nil {
+				t.Fatalf("read jsc: %v", err)
+			}
+
+			// Auto-detect version from magic
+			magic := binary.LittleEndian.Uint32(data[:4])
+			ver := sm.DetectVersion(magic)
+			ops := sm.OpcodeTable(ver)
+			if ops == nil {
+				t.Fatalf("unknown version (magic 0x%08x)", magic)
+			}
+
+			script, err := xdr.Decode(data)
 			if err != nil {
 				t.Fatalf("decode: %v", err)
 			}
 
-			got := DisasmTree(script)
+			res, err := DisasmTreeOpt(script, sm.DefaultOptions(), ops)
+			if err != nil {
+				t.Fatalf("disasm: %v", err)
+			}
+			got := res.Value
+			if os.Getenv("UPDATE_GOLDENS") != "" {
+				if err := os.WriteFile(goldenPath, []byte(got), 0o644); err != nil {
+					t.Fatalf("write golden: %v", err)
+				}
+				t.Logf("updated %s (%d bytes)", goldenPath, len(got))
+				return
+			}
 			if got != string(golden) {
 				t.Errorf("output mismatch for %s", name)
 				t.Logf("got length=%d, want length=%d", len(got), len(golden))
@@ -44,16 +72,16 @@ func TestGoldenFiles(t *testing.T) {
 }
 
 func TestUnknownOpcodeStrict(t *testing.T) {
-	s := &sm33.Script{Bytecode: []byte{0xFF}}
-	_, err := DisasmScriptOpt(s, "test", false, sm33.DefaultOptions())
+	s := &sm.Script{Bytecode: []byte{0xFF}}
+	_, err := DisasmScriptOpt(s, "test", false, sm.DefaultOptions(), v33ops)
 	if err == nil {
 		t.Fatal("Strict should error on unknown opcode")
 	}
 }
 
 func TestUnknownOpcodeBestEffort(t *testing.T) {
-	s := &sm33.Script{Bytecode: []byte{0xFF}}
-	res, err := DisasmScriptOpt(s, "test", false, sm33.Options{Mode: sm33.BestEffort})
+	s := &sm.Script{Bytecode: []byte{0xFF}}
+	res, err := DisasmScriptOpt(s, "test", false, sm.Options{Mode: sm.BestEffort}, v33ops)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -67,16 +95,16 @@ func TestUnknownOpcodeBestEffort(t *testing.T) {
 
 func TestTruncatedOperandStrict(t *testing.T) {
 	// goto (0x06) needs 5 bytes total, give it only 1
-	s := &sm33.Script{Bytecode: []byte{0x06}}
-	_, err := DisasmScriptOpt(s, "test", false, sm33.DefaultOptions())
+	s := &sm.Script{Bytecode: []byte{0x06}}
+	_, err := DisasmScriptOpt(s, "test", false, sm.DefaultOptions(), v33ops)
 	if err == nil {
 		t.Fatal("Strict should error on truncated operand")
 	}
 }
 
 func TestTruncatedOperandBestEffort(t *testing.T) {
-	s := &sm33.Script{Bytecode: []byte{0x06}}
-	res, err := DisasmScriptOpt(s, "test", false, sm33.Options{Mode: sm33.BestEffort})
+	s := &sm.Script{Bytecode: []byte{0x06}}
+	res, err := DisasmScriptOpt(s, "test", false, sm.Options{Mode: sm.BestEffort}, v33ops)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -87,30 +115,30 @@ func TestTruncatedOperandBestEffort(t *testing.T) {
 
 func TestInnerFunctionErrorStrict(t *testing.T) {
 	// Script with an inner function whose bytecode is a truncated goto
-	inner := &sm33.Script{Bytecode: []byte{0x06}} // truncated goto
-	s := &sm33.Script{
+	inner := &sm.Script{Bytecode: []byte{0x06}} // truncated goto
+	s := &sm.Script{
 		Bytecode: []byte{0x00}, // nop
-		Objects: []*sm33.Object{{
-			Kind:     sm33.CkJSFunction,
-			Function: &sm33.Function{Name: "broken", Script: inner},
+		Objects: []*sm.Object{{
+			Kind:     sm.CkJSFunction,
+			Function: &sm.Function{Name: "broken", Script: inner},
 		}},
 	}
-	_, err := DisasmTreeOpt(s, sm33.DefaultOptions())
+	_, err := DisasmTreeOpt(s, sm.DefaultOptions(), v33ops)
 	if err == nil {
 		t.Fatal("Strict should propagate error from inner function")
 	}
 }
 
 func TestInnerFunctionErrorBestEffort(t *testing.T) {
-	inner := &sm33.Script{Bytecode: []byte{0x06}} // truncated goto
-	s := &sm33.Script{
+	inner := &sm.Script{Bytecode: []byte{0x06}} // truncated goto
+	s := &sm.Script{
 		Bytecode: []byte{0x00}, // nop
-		Objects: []*sm33.Object{{
-			Kind:     sm33.CkJSFunction,
-			Function: &sm33.Function{Name: "broken", Script: inner},
+		Objects: []*sm.Object{{
+			Kind:     sm.CkJSFunction,
+			Function: &sm.Function{Name: "broken", Script: inner},
 		}},
 	}
-	res, err := DisasmTreeOpt(s, sm33.Options{Mode: sm33.BestEffort})
+	res, err := DisasmTreeOpt(s, sm.Options{Mode: sm.BestEffort}, v33ops)
 	if err != nil {
 		t.Fatalf("BestEffort should not error: %v", err)
 	}
@@ -122,15 +150,15 @@ func TestInnerFunctionErrorBestEffort(t *testing.T) {
 func TestBestEffortDiagnosticFunc(t *testing.T) {
 	// Named inner function: diagnostics carry the function name.
 	t.Run("named", func(t *testing.T) {
-		inner := &sm33.Script{Bytecode: []byte{0x06}}
-		s := &sm33.Script{
+		inner := &sm.Script{Bytecode: []byte{0x06}}
+		s := &sm.Script{
 			Bytecode: []byte{0x00},
-			Objects: []*sm33.Object{{
-				Kind:     sm33.CkJSFunction,
-				Function: &sm33.Function{Name: "broken", Script: inner},
+			Objects: []*sm.Object{{
+				Kind:     sm.CkJSFunction,
+				Function: &sm.Function{Name: "broken", Script: inner},
 			}},
 		}
-		res, err := DisasmTreeOpt(s, sm33.Options{Mode: sm33.BestEffort})
+		res, err := DisasmTreeOpt(s, sm.Options{Mode: sm.BestEffort}, v33ops)
 		if err != nil {
 			t.Fatalf("BestEffort should not error: %v", err)
 		}
@@ -148,15 +176,15 @@ func TestBestEffortDiagnosticFunc(t *testing.T) {
 
 	// Anonymous inner function: diagnostics use "anon#N" for disambiguation.
 	t.Run("anonymous", func(t *testing.T) {
-		inner := &sm33.Script{Bytecode: []byte{0x06}}
-		s := &sm33.Script{
+		inner := &sm.Script{Bytecode: []byte{0x06}}
+		s := &sm.Script{
 			Bytecode: []byte{0x00},
-			Objects: []*sm33.Object{{
-				Kind:     sm33.CkJSFunction,
-				Function: &sm33.Function{Name: "", Script: inner},
+			Objects: []*sm.Object{{
+				Kind:     sm.CkJSFunction,
+				Function: &sm.Function{Name: "", Script: inner},
 			}},
 		}
-		res, err := DisasmTreeOpt(s, sm33.Options{Mode: sm33.BestEffort})
+		res, err := DisasmTreeOpt(s, sm.Options{Mode: sm.BestEffort}, v33ops)
 		if err != nil {
 			t.Fatalf("BestEffort should not error: %v", err)
 		}
@@ -201,19 +229,19 @@ func FuzzDisasm(f *testing.F) {
 		if err != nil {
 			f.Fatal(err)
 		}
-		res, err := xdr.DecodeOpt(data, sm33.Options{Mode: sm33.BestEffort})
+		res, err := xdr.DecodeOpt(data, sm.Options{Mode: sm.BestEffort})
 		if err == nil && res.Value != nil && len(res.Value.Bytecode) > 0 {
 			f.Add(res.Value.Bytecode)
 		}
 	}
 
 	f.Fuzz(func(t *testing.T, bc []byte) {
-		s := &sm33.Script{Bytecode: bc}
+		s := &sm.Script{Bytecode: bc}
 
 		// Strict mode: must not panic
-		DisasmScriptOpt(s, "fuzz", false, sm33.DefaultOptions())
+		DisasmScriptOpt(s, "fuzz", false, sm.DefaultOptions(), v33ops)
 
 		// BestEffort mode: must not panic
-		DisasmScriptOpt(s, "fuzz", false, sm33.Options{Mode: sm33.BestEffort})
+		DisasmScriptOpt(s, "fuzz", false, sm.Options{Mode: sm.BestEffort}, v33ops)
 	})
 }

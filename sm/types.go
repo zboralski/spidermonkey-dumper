@@ -1,4 +1,4 @@
-package sm33
+package sm
 
 // Mode controls error handling behavior for decode and disassembly.
 type Mode int
@@ -17,7 +17,7 @@ type Options struct {
 	// MaxSteps is a safety cap for loop iterations; 0 uses DefaultMaxSteps.
 	MaxSteps int
 
-	// MaxReadBytes caps any single bytes() allocation during XDR decode; 0 uses sm33.MaxReadBytes.
+	// MaxReadBytes caps any single bytes() allocation during XDR decode; 0 uses sm.MaxReadBytes.
 	// This is a DoS/OOM guard. Larger caps can be necessary for real-world .jsc files.
 	MaxReadBytes int
 }
